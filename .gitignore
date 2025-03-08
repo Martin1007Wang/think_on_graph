@@ -1,0 +1,11 @@
+*.pyc
+*.out
+.vscode/
+logs
+tmp/
+.env
+save_models
+wandb/
+data/
+embeddings/
+results/
