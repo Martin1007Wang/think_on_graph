@@ -10,9 +10,7 @@ NEO4J_PASSWORD="Martin1007Wang"
 
 MAX_PATH_LENGTH=3
 TOP_K_RELATIONS=5
-MAX_BACKTRACK=5
-SIMILARITY_MODEL="msmarco-distilbert-base-tas-b"
-NUM_WORKERS=8
+MODEL_NAME="msmarco-distilbert-base-tas-b"
 MAX_PAIRS=5
 MAX_NEGATIVES_PER_PAIR=5
 
@@ -26,8 +24,6 @@ python workflow/prepare_dataset.py \
     --neo4j_password ${NEO4J_PASSWORD} \
     --max_path_length ${MAX_PATH_LENGTH} \
     --top_k_relations ${TOP_K_RELATIONS} \
-    --max_backtrack ${MAX_BACKTRACK} \
-    --similarity_model ${SIMILARITY_MODEL} \
-    --num_workers ${NUM_WORKERS} \
+    --model_name ${MODEL_NAME} \
     --max_pairs ${MAX_PAIRS} \
     --max_negatives_per_pair ${MAX_NEGATIVES_PER_PAIR}

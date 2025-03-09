@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "graph-constrained-reasoning"
+name = "think_on_graph"
 version = "0.1.0"
-description = ""
-authors = ["Linhao Luo <noreply@github.io>"]
+description = "Think on Graph is built on top of graph-constrained-reasoning by Linhao Luo <noreply@github.io>, which is a framework for graph-constrained reasoning tasks."
+authors = ["Martin1007Wang"]
 readme = "README.md"
 packages = [
     { include = "src" }
@@ -25,7 +25,8 @@ trl = "^0.9.4"
 sentencepiece = "^0.2.0"
 protobuf = "^5.27.1"
 wandb = "^0.17.1"
-
+sentence-transformers = "3.4.1"
+neo4j = "5.28.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"

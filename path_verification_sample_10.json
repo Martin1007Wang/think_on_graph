@@ -1,0 +1,30 @@
+[
+  {
+    "id": "WebQTrn-14",
+    "question": "where is rome italy located on a map",
+    "q_entities": [
+      "Rome"
+    ],
+    "a_entities": [
+      "Italy",
+      "Lazio",
+      "Province of Rome"
+    ],
+    "paths": [
+      {
+        "q_entity": "Rome",
+        "a_entity": "Italy",
+        "golden_path": "Rome location.location.containedby Italy",
+        "positive_path": "Rome location.location.containedby Italy",
+        "negative_paths": [
+          "Rome location.location.nearby_airports Urbe Airport",
+          "Rome location.location.nearby_airports Ciampino–G. B. Pastine International Airport",
+          "Rome location.location.nearby_airports Italian Met Office Airport",
+          "Rome location.location.nearby_airports Leonardo da Vinci–Fiumicino Airport",
+          "Rome location.location.nearby_airports Rome Viterbo Airport"
+        ]
+      }
+    ],
+    "processing_time": -2.384185791015625e-07
+  }
+]

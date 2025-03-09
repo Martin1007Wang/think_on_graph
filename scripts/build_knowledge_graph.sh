@@ -4,8 +4,8 @@ SPLIT="train"
 NEO4J_URI="bolt://localhost:7687"
 NEO4J_USER="neo4j"
 NEO4J_PASSWORD="Martin1007Wang"
-MODEL_NAME="all-MiniLM-L6-v2"
-CLEAR=true
+MODEL_NAME="msmarco-distilbert-base-tas-b"
+CLEAR=True
 echo "Loading ${DATASET} ${SPLIT} into Neo4j..."
 python workflow/build_knowledge_graph.py \
     --dataset ${DATASET} \
