@@ -21,6 +21,16 @@ def process_single_sample(
     semantic_entities_count: int = 3
 ) -> Dict[str, Any]:
     """Process a single sample to generate paths, prioritizing real entities and incrementally adding semantic entities."""
+    # 初始化时间统计字典
+    time_stats = {
+        "golden_path_total": 0,
+        "positive_path_total": 0,
+        "negative_paths_total": 0,
+        "semantic_entities_total": 0
+    }
+    
+    start_time = time.time()
+    
     q_entities = sample['q_entity'] if isinstance(sample['q_entity'], list) else [sample['q_entity']]
     a_entities = sample.get('a_entity', []) if isinstance(sample.get('a_entity', []), list) else [sample.get('a_entity', '')]
     question = sample['question']
@@ -29,10 +39,10 @@ def process_single_sample(
     semantic_q_entities = []
 
     if add_semantic_entities and path_generator.kg:
-        related_entities = path_generator.kg.get_related_entities_by_question(
-            question=question, n=semantic_entities_count
-        )
+        semantic_start = time.time()
+        related_entities = path_generator.kg.get_related_entities_by_question(question=question)
         semantic_q_entities = [entity_id for entity_id, score in related_entities if entity_id not in real_q_entities]
+        time_stats["semantic_entities_total"] += time.time() - semantic_start
 
     sample_result = {
         "id": sample.get('id', 'unknown'),
@@ -48,13 +58,25 @@ def process_single_sample(
     for i, (q_entity, a_entity) in enumerate(pairs):
         if i >= max_pairs:
             break
+            
+        # 统计golden_path时间
+        golden_start = time.time()
         golden_path = path_generator.get_golden_path(q_entity, a_entity)
+        time_stats["golden_path_total"] += time.time() - golden_start
+        
+        # 统计positive_path时间
+        positive_start = time.time()
         positive_path, visited = path_generator.get_positive_path(q_entity, a_entity, question)
+        time_stats["positive_path_total"] += time.time() - positive_start
         
         if positive_path:
+            # 统计negative_paths时间
+            negative_start = time.time()
             negative_paths = path_generator.get_negative_paths(
                 positive_path, question, a_entity, max_negatives_per_pair
             )
+            time_stats["negative_paths_total"] += time.time() - negative_start
+            
             negative_paths = negative_paths[:max_negatives_per_pair]
             pair = {
                 "q_entity": q_entity,
@@ -75,13 +97,25 @@ def process_single_sample(
             for i, (q_entity, a_entity) in enumerate(pairs):
                 if i >= max_pairs:
                     break
+                    
+                # 统计golden_path时间
+                golden_start = time.time()
                 golden_path = path_generator.get_golden_path(q_entity, a_entity)
+                time_stats["golden_path_total"] += time.time() - golden_start
+                
+                # 统计positive_path时间
+                positive_start = time.time()
                 positive_path, visited = path_generator.get_positive_path(q_entity, a_entity, question)
+                time_stats["positive_path_total"] += time.time() - positive_start
                 
                 if positive_path:
+                    # 统计negative_paths时间
+                    negative_start = time.time()
                     negative_paths = path_generator.get_negative_paths(
                         positive_path, question, a_entity, max_negatives_per_pair
                     )
+                    time_stats["negative_paths_total"] += time.time() - negative_start
+                    
                     negative_paths = negative_paths[:max_negatives_per_pair]
                     pair = {
                         "q_entity": q_entity,
@@ -101,6 +135,28 @@ def process_single_sample(
     if not positive_found:
         logger.warning(f"No positive path found for question: {question}")
 
+    # 计算总时间并添加到结果中
+    total_time = time.time() - start_time
+    time_stats["total_time"] = total_time
+    
+    # 计算每个函数占总时间的百分比
+    for key in ["golden_path_total", "positive_path_total", "negative_paths_total", "semantic_entities_total"]:
+        if total_time > 0:
+            time_stats[f"{key}_percent"] = (time_stats[key] / total_time) * 100
+        else:
+            time_stats[f"{key}_percent"] = 0
+    
+    # 记录时间统计信息
+    logger.info(f"Time statistics for question '{question}':")
+    logger.info(f"  Total time: {total_time:.2f}s")
+    logger.info(f"  Golden path: {time_stats['golden_path_total']:.2f}s ({time_stats['golden_path_total_percent']:.1f}%)")
+    logger.info(f"  Positive path: {time_stats['positive_path_total']:.2f}s ({time_stats['positive_path_total_percent']:.1f}%)")
+    logger.info(f"  Negative paths: {time_stats['negative_paths_total']:.2f}s ({time_stats['negative_paths_total_percent']:.1f}%)")
+    logger.info(f"  Semantic entities: {time_stats['semantic_entities_total']:.2f}s ({time_stats['semantic_entities_total_percent']:.1f}%)")
+    
+    # 将时间统计添加到结果中
+    sample_result["time_stats"] = time_stats
+    
     return sample_result
 
 def process_samples(
@@ -147,8 +203,8 @@ def verify_path_generation():
     parser.add_argument('--data_path', type=str, default='rmanluo/RoG-webqsp', help='数据集路径')
     parser.add_argument('--dataset', '-d', type=str, default='RoG-webqsp')
     parser.add_argument('--split', type=str, default='train', help='数据集分割')
-    parser.add_argument('--num_samples', type=int, default=20, help='处理的样本数量')
-    parser.add_argument('--model_name', type=str, default='msmarco-distilbert-base-tas-b', help='Pretrained model name')
+    parser.add_argument('--num_samples', type=int, default=50, help='处理的样本数量')
+    parser.add_argument('--model_name', type=str, default='all-MiniLM-L6-v2', help='Pretrained model name')
     parser.add_argument('--neo4j_uri', type=str, default='bolt://localhost:7687', help='Neo4j URI')
     parser.add_argument('--neo4j_user', type=str, default='neo4j', help='Neo4j用户名')
     parser.add_argument('--neo4j_password', type=str, default='Martin1007Wang', help='Neo4j密码')

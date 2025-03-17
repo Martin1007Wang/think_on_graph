@@ -31,18 +31,6 @@ def rule_to_string(rule: list, sep_token = "<SEP>", bop = "<PATH>", eop = "</PAT
         rule_string = sep_token.join(rule)
     return bop + rule_string + eop
 
-def path_to_string(path: list) -> str:
-    result = ""
-    for i, p in enumerate(path):
-        if i == 0:
-            h, r, t = p
-            result += f"{h} -> {r} -> {t}"
-        else:
-            _, r, t = p
-            result += f" -> {r} -> {t}"
-            
-    return result.strip()
-
 class InstructFormater(object):
     def __init__(self, prompt_path):
         '''

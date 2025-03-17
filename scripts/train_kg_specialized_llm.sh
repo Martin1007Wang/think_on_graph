@@ -1,6 +1,7 @@
 export HF_ENDPOINT=https://hf-mirror.com
 
-DATASET_LIST="data/shortest_path_index/RoG-webqsp/train data/shortest_path_index_by_mcts/RoG-cwq/train"
+DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
+MODEL_NAME="msmarco-distilbert-base-tas-b"
 NEO4J_URI="bolt://localhost:7687"
 NEO4J_USER="neo4j"
 NEO4J_PASSWORD="Martin1007Wang"
@@ -61,6 +62,7 @@ SAVE_NAME=$(basename "$SAVE_PATH")
 
 accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm.py \
     --data_path_list ${DATASET_LIST}  \
+    --encode_model_name ${MODEL_NAME} \
     --neo4j_uri ${NEO4J_URI} \
     --neo4j_user ${NEO4J_USER} \
     --neo4j_password ${NEO4J_PASSWORD} \
@@ -89,3 +91,4 @@ accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm.p
     --attn_implementation ${ATTN_IMP} \
     --response_template "${RESPONSE_TEMPLATE}" \
     --run_name ${SAVE_NAME}
+

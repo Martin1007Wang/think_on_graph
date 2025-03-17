@@ -22,7 +22,7 @@ def index_graph(args):
     output_dir = os.path.join(args.output_path, data_path, args.split)
     
     # Load dataset
-    dataset = load_dataset(input_file, split=args.split)
+    dataset = load_dataset(input_file, split=args.split)[:100]
     
     results = []
     path_stats_summary = {
@@ -55,7 +55,8 @@ def index_graph(args):
         json.dump(path_stats_summary, f, indent=2)
     
     index_dataset = Dataset.from_list(results)
-    index_dataset.save_to_disk(output_dir)
+    with open(os.path.join(output_dir, 'index_dataset.json'), 'w') as f:
+        index_dataset.to_json(f)
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
