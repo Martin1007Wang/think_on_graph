@@ -1,13 +1,9 @@
 import os
 import torch
 import logging
-import time
-import numpy as np
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List, Tuple, Union
+from typing import List
 import torch.utils.data
-import torch.distributed as dist
 import datasets
 import dotenv
 from transformers import (
@@ -15,10 +11,9 @@ from transformers import (
     AutoTokenizer,
     HfArgumentParser,
     TrainingArguments,
-    set_seed,
 )
-from trl import CPOTrainer, CPOConfig, DataCollatorForCompletionOnlyLM
-from peft import LoraConfig, get_peft_model
+from trl import CPOTrainer, CPOConfig
+from peft import LoraConfig
 from src.template import Template
 from tqdm.auto import tqdm
 from transformers.trainer_utils import get_last_checkpoint
@@ -152,7 +147,6 @@ def train():
     tokenizer.add_special_tokens(special_tokens_dict)
     model.resize_token_embeddings(len(tokenizer))
     cpo_dataset = prepare_cpo_dataset(args.data_path_list, tokenizer, args)
-    print(cpo_dataset[0])
     trainer_config = CPOConfig(
         **training_args.to_dict(),
         loss_type=args.loss_type,

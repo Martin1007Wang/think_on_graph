@@ -1,13 +1,15 @@
-export CUDA_VISIBLE_DEVICES=0
-DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
+#!/bin/bash
+#SBATCH --partition=a100x4
+#SBATCH --account=wangjian
+#SBATCH --nodes=1
+#SBATCH --ntasks=2
+#SBATCH --gres=gpu:2
+#SBATCH --cpus-per-task=16
+#SBATCH --job-name=kg_llm_training
+#SBATCH --output=logs/kg_llm_training_%j.log
+#SBATCH --error=logs/kg_llm_training_%j.err
 
-# Lora
-# BATCH_SIZE=64
-# USE_PEFT=True
-# EPOCH=20
-# GRADIENT_CHECKPOINTING=False
-# GRADIENT_ACCUMULATION_STEPS=1
-# auto_find_batch_size=True
+DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
 
 # Full
 BATCH_SIZE=4
@@ -17,18 +19,7 @@ GRADIENT_CHECKPOINTING=True
 GRADIENT_ACCUMULATION_STEPS=16
 auto_find_batch_size=False
 
-# CONFIG="accelerate_configs/multi_gpu.yaml"
 CONFIG="accelerate_configs/deepspeed_zero3.yaml"
-
-# Model Configurations
-
-# MODEL_PATH=Qwen/Qwen2-0.5B-Instruct
-# MODEL_PATH=Qwen/Qwen2-1.5B-Instruct
-# MODEL_PATH=Qwen/Qwen2-7B-Instruct
-# RESPONSE_TEMPLATE="<|im_start|>assistant"
-
-# MODEL_PATH=meta-llama/Llama-2-7b-chat-hf
-# RESPONSE_TEMPLATE="[/INST]"
 
 MODEL_PATH=/mnt/data/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659
 RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
@@ -37,6 +28,30 @@ ATTN_IMP=flash_attention_2
 
 SAVE_PATH=cpo_models/GCR-$(basename "$MODEL_PATH")
 SAVE_NAME=$(basename "$SAVE_PATH")
+
+# 创建日志目录
+mkdir -p logs
+
+# 输出作业信息
+echo "Job started at $(date)"
+echo "Running on node: $(hostname)"
+echo "Training model: ${MODEL_PATH}"
+
+export WANDB_MODE=offline
+export WANDB_API_KEY=485437de8d2d866cc352b3046d229da99f2a7386
+__conda_setup="$('/home/wangjingxiong/project/anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/wangjingxiong/project/anaconda3/etc/profile.d/conda.sh" ]; 
+then
+        . "/home/wangjingxiong/project/anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/wangjingxiong/project/anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+conda activate GCR
 
 accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_cpo.py \
     --data_path_list ${DATASET_LIST}  \
@@ -65,3 +80,5 @@ accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_c
     --attn_implementation ${ATTN_IMP} \
     --response_template "${RESPONSE_TEMPLATE}" \
     --run_name ${SAVE_NAME}
+
+echo "Job completed at $(date)"
