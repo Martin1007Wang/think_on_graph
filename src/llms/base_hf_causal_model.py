@@ -16,9 +16,6 @@ class HfCausalModel(BaseLanguageModel):
 
     @staticmethod
     def add_args(parser):
-        parser.add_argument(
-            "--model_path", type=str, help="HUGGING FACE MODEL or model path"
-        )
         parser.add_argument("--maximun_token", type=int, help="max length", default=4096)
         parser.add_argument(
             "--max_new_tokens", type=int, help="max length", default=1024

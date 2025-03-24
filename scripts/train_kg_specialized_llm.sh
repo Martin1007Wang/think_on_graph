@@ -1,19 +1,12 @@
-export HF_ENDPOINT=https://hf-mirror.com
-
 DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
-MODEL_NAME="msmarco-distilbert-base-tas-b"
-NEO4J_URI="bolt://localhost:7687"
-NEO4J_USER="neo4j"
-NEO4J_PASSWORD="Martin1007Wang"
 
-# Lora with optimized resources
-# BATCH_SIZE=16
+# Lora
+# BATCH_SIZE=50
 # USE_PEFT=True
-# EPOCH=10
-# GRADIENT_CHECKPOINTING=True
-# GRADIENT_ACCUMULATION_STEPS=4
+# EPOCH=20
+# GRADIENT_CHECKPOINTING=False
+# GRADIENT_ACCUMULATION_STEPS=1
 # auto_find_batch_size=True
-# CONFIG="accelerate_configs/multi_gpu.yaml"
 
 # Full
 BATCH_SIZE=4
@@ -22,50 +15,32 @@ EPOCH=3
 GRADIENT_CHECKPOINTING=True
 GRADIENT_ACCUMULATION_STEPS=16
 auto_find_batch_size=False
+
+# CONFIG="accelerate_configs/multi_gpu.yaml"
 CONFIG="accelerate_configs/deepspeed_zero3.yaml"
 
 # Model Configurations
 
+RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
+
 MODEL_PATH=Qwen/Qwen2-0.5B-Instruct
-ATTN_IMP=flash_attention_2
-RESPONSE_TEMPLATE="<|im_start|>assistant"
-CONFIG="accelerate_configs/multi_gpu.yaml"
-
 # MODEL_PATH=Qwen/Qwen2-1.5B-Instruct
-# ATTN_IMP=flash_attention_2
-# RESPONSE_TEMPLATE="<|im_start|>assistant"
-# CONFIG="accelerate_configs/multi_gpu.yaml"
-
 # MODEL_PATH=Qwen/Qwen2-7B-Instruct
-# ATTN_IMP=flash_attention_2
-# RESPONSE_TEMPLATE="<|im_start|>assistant"
-# CONFIG="accelerate_configs/deepspeed_zero3.yaml"
+RESPONSE_TEMPLATE="<|im_start|>assistant"
 
 # MODEL_PATH=meta-llama/Llama-2-7b-chat-hf
-# ATTN_IMP=flash_attention_2
 # RESPONSE_TEMPLATE="[/INST]"
-# CONFIG="accelerate_configs/deepspeed_zero3.yaml"
 
-# MODEL_PATH=meta-llama/Meta-Llama-3.1-8B-Instruct
-# ATTN_IMP=flash_attention_2
+# MODEL_PATH=/mnt/data/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659
 # RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
-# CONFIG="accelerate_configs/deepspeed_zero3.yaml"
 
-# MODEL_PATH=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
-# ATTN_IMP=flash_attention_2
-# RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
-# CONFIG="accelerate_configs/deepspeed_zero3.yaml"
+ATTN_IMP=flash_attention_2
 
-
-SAVE_PATH=save_models/GCR-$(basename "$MODEL_PATH")
+SAVE_PATH=debug_models/GCR-$(basename "$MODEL_PATH")
 SAVE_NAME=$(basename "$SAVE_PATH")
 
-accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm.py \
+accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_cpo.py \
     --data_path_list ${DATASET_LIST}  \
-    --encode_model_name ${MODEL_NAME} \
-    --neo4j_uri ${NEO4J_URI} \
-    --neo4j_user ${NEO4J_USER} \
-    --neo4j_password ${NEO4J_PASSWORD} \
     --model_name_or_path ${MODEL_PATH} \
     --output_dir ${SAVE_PATH} \
     --use_peft ${USE_PEFT} \
@@ -91,4 +66,3 @@ accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm.p
     --attn_implementation ${ATTN_IMP} \
     --response_template "${RESPONSE_TEMPLATE}" \
     --run_name ${SAVE_NAME}
-

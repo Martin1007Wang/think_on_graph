@@ -94,11 +94,6 @@ def main(args, LLM):
     # Load dataset
     dataset = load_dataset(input_file, split=args.split)
     post_fix = f"{args.prefix}{args.prompt_mode}-{args.generation_mode}-k{args.k}-index_len{args.index_path_length}"
-    if args.add_rule:
-        rule_postfix = args.rule_path.replace("/", "_").replace(".", "_")
-        rule_dataset = utils.load_jsonl(args.rule_path)
-        dataset = merge_rule_result(dataset, rule_dataset, args.n, args.filter_empty)
-        post_fix += "_" + rule_postfix
     data_name = args.d + "_undirected" if args.undirected else args.d
     output_dir = os.path.join(args.predict_path, data_name, args.model_name, args.split, post_fix)
     print("Save results to: ", output_dir)
@@ -167,11 +162,7 @@ if __name__ == "__main__":
     argparser.add_argument("--prompt_mode", type=str, default="zero-shot", choices=["zero-shot", "mcq-zero-shot", "few-shot"])
     argparser.add_argument("--filter_empty", action="store_true")
     argparser.add_argument("--add_rule", action="store_true")
-    argparser.add_argument(
-        "--rule_path",
-        type=str,
-        default="results/gen_rule_path/webqsp_undirected/Llama-2-7b-chat-hf_align-spectoken-joint/test/predictions_3_False.jsonl",
-    )
+    argparser.add_argument("--rule_path",type=str,default="results/gen_rule_path/webqsp_undirected/Llama-2-7b-chat-hf_align-spectoken-joint/test/predictions_3_False.jsonl",)
     argparser.add_argument("--prefix", type=str, default="")
 
     args, _  = argparser.parse_known_args()
