@@ -59,7 +59,7 @@ class TrainingConfig(TrainingArguments):
     output_dir: str = field(default="saved_models/llama2_align",metadata={"help": "The output directory"},)
     optim: str = field(default="adamw_torch")
     ddp_find_unused_parameters: bool = field(default=False)
-    dataloader_num_workers: int = field(default=N_CPUS)
+    dataloader_num_workers: int = field(default=Constants.N_CPUS)
     local_rank: int = field(default=-1, metadata={"help": "Local rank for distributed training"})
     remove_unused_columns: bool = field(default=False)
 
