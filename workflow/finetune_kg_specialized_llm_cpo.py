@@ -57,6 +57,7 @@ class TrainingConfig(TrainingArguments):
     dataloader_num_workers: int = field(default=Constants.N_CPUS)
     local_rank: int = field(default=-1, metadata={"help": "Local rank for distributed training"})
     remove_unused_columns: bool = field(default=False)
+    per_device_train_batch_size: int = field(default=4)
 
 def prepare_cpo_dataset(data_paths, tokenizer, args):
     logger.info(f"Preparing CPO dataset from {len(data_paths)} sources")
@@ -128,6 +129,8 @@ def train():
         "load_in_8bit": args.load_in_8bit,
     }
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, **model_kwargs)
+    if args.attn_implementation == "flash_attention_2":
+        model = model.to(training_args.device)
     model.config.use_cache = False
     if args.use_peft:
         logger.info(f"Initializing LoRA adapter")
@@ -147,6 +150,9 @@ def train():
     tokenizer.add_special_tokens(special_tokens_dict)
     model.resize_token_embeddings(len(tokenizer))
     cpo_dataset = prepare_cpo_dataset(args.data_path_list, tokenizer, args)
+    if training_args.local_rank != -1:
+        torch.distributed.barrier()
+        logger.info(f"Process {training_args.local_rank} passed data preparation barrier")
     trainer_config = CPOConfig(
         **training_args.to_dict(),
         loss_type=args.loss_type,
@@ -155,6 +161,9 @@ def train():
         max_prompt_length=512,
         padding_value=tokenizer.pad_token_id,
     )
+    if training_args.local_rank != -1:
+        torch.distributed.barrier()
+        logger.info(f"Process {training_args.local_rank} passed trainer config barrier")
     trainer = CPOTrainer(
         model=model,
         args=trainer_config,
@@ -172,6 +181,9 @@ def train():
             logging.info(f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
                         "the `--output_dir` or add `--overwrite_output_dir` to train from scratch.")
     checkpoint = training_args.resume_from_checkpoint or last_checkpoint
+    if training_args.local_rank != -1:
+        torch.distributed.barrier()
+        logger.info(f"Process {training_args.local_rank} ready to start training")
     trainer.train(resume_from_checkpoint=checkpoint)
     trainer.save_model(training_args.output_dir)
     

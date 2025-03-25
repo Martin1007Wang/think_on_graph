@@ -1,4 +1,6 @@
-export CUDA_VISIBLE_DEVICES=0
+export NCCL_P2P_LEVEL=NVL
+export NCCL_P2P_DISABLE=1
+export TOKENIZERS_PARALLELISM=false
 DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
 
 # Lora

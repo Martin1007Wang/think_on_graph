@@ -11,5 +11,4 @@ rdzv_backend: static
 same_network: true
 use_cpu: false
 gpu_ids: all
-gradient_accumulation_steps: 16
 dynamo_backend: 'no'
