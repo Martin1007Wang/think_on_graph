@@ -12,7 +12,7 @@ from transformers import (
     HfArgumentParser,
     TrainingArguments,
 )
-from trl import CPOTrainer, CPOConfig
+from trl import CPOTrainer, CPOConfig, DataCollatorForCompletionOnlyLM
 from peft import LoraConfig
 from src.template import Template
 from tqdm.auto import tqdm
@@ -48,6 +48,8 @@ class ScriptArguments:
     cpo_alpha: float = field(default=0.1,metadata={"help": "The alpha parameter for CPO-SimPO"})
     batch_size: int = field(default=4, metadata={"help": "Batch size for training"})
     response_template: str = field(default="", metadata={"help": "Response template"})
+    max_length: int = field(default=512, metadata={"help": "Maximum sequence length"})
+    max_prompt_length: int = field(default=256, metadata={"help": "Maximum prompt length"})
     
 @dataclass
 class TrainingConfig(TrainingArguments):
@@ -157,19 +159,23 @@ def train():
         **training_args.to_dict(),
         loss_type=args.loss_type,
         cpo_alpha=args.cpo_alpha,
-        max_length=1024,
-        max_prompt_length=512,
+        max_length=args.max_length,
+        max_prompt_length=args.max_prompt_length,
         padding_value=tokenizer.pad_token_id,
     )
     if training_args.local_rank != -1:
         torch.distributed.barrier()
         logger.info(f"Process {training_args.local_rank} passed trainer config barrier")
+    # data_collator = DataCollatorForCompletionOnlyLM(
+    #     args.response_template, tokenizer=tokenizer, mlm=False
+    # )
     trainer = CPOTrainer(
         model=model,
         args=trainer_config,
         train_dataset=cpo_dataset,
         processing_class=tokenizer,
         peft_config=peft_config,
+        # data_collator=data_collator,
     )
     last_checkpoint = None
     if os.path.isdir(training_args.output_dir) and not training_args.overwrite_output_dir:

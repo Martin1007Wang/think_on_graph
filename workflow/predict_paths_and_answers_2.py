@@ -11,6 +11,8 @@ from src.utils.qa_utils import eval_path_result_w_ans
 from src.template import Template
 from src.knowledge_graph import KnowledgeGraph
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # 设置日志
 def setup_logging(name="kg_qa", level=logging.INFO):
     logger = logging.getLogger(name)

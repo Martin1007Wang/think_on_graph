@@ -1,23 +1,24 @@
+export CUDA_VISIBLE_DEVICES=1
 export NCCL_P2P_LEVEL=NVL
 export NCCL_P2P_DISABLE=1
 export TOKENIZERS_PARALLELISM=false
 DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
 
 # Lora
-# BATCH_SIZE=64
-# USE_PEFT=True
-# EPOCH=20
-# GRADIENT_CHECKPOINTING=False
-# GRADIENT_ACCUMULATION_STEPS=1
-# auto_find_batch_size=True
+BATCH_SIZE=8
+USE_PEFT=True
+EPOCH=10
+GRADIENT_CHECKPOINTING=False
+GRADIENT_ACCUMULATION_STEPS=16
+auto_find_batch_size=True
 
 # Full
-BATCH_SIZE=4
-USE_PEFT=False
-EPOCH=3
-GRADIENT_CHECKPOINTING=True
-GRADIENT_ACCUMULATION_STEPS=16
-auto_find_batch_size=False
+# BATCH_SIZE=4
+# USE_PEFT=False
+# EPOCH=3
+# GRADIENT_CHECKPOINTING=True
+# GRADIENT_ACCUMULATION_STEPS=16
+# auto_find_batch_size=False
 
 # CONFIG="accelerate_configs/multi_gpu.yaml"
 CONFIG="accelerate_configs/deepspeed_zero3.yaml"
@@ -37,7 +38,7 @@ RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
 
 ATTN_IMP=flash_attention_2
 
-SAVE_PATH=cpo_models/GCR-$(basename "$MODEL_PATH")
+SAVE_PATH=cpo_models_with_response_template/GCR-$(basename "$MODEL_PATH")
 SAVE_NAME=$(basename "$SAVE_PATH")
 
 accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_cpo.py \
