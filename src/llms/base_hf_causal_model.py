@@ -53,7 +53,7 @@ class HfCausalModel(BaseLanguageModel):
                          choices=["greedy", "beam", "sampling", "group-beam", 
                                  "beam-early-stopping", "group-beam-early-stopping"],
                          help="Text generation strategy")
-        group.add_argument("--k", type=int, default=1, 
+        group.add_argument("--generation_k", type=int, default=1, 
                          help="Number of paths/sequences to generate")
         group.add_argument("--chat_model", default='true', 
                          type=lambda x: (str(x).lower() == 'true'),
@@ -207,21 +207,21 @@ class HfCausalModel(BaseLanguageModel):
     def _configure_sampling_generation(self):
         """Configure for sampling-based generation."""
         self.generation_cfg.do_sample = True
-        self.generation_cfg.num_return_sequences = self.args.k
+        self.generation_cfg.num_return_sequences = self.args.generation_k
         
     def _configure_beam_search(self, early_stopping=False):
         """Configure for beam search generation."""
         self.generation_cfg.do_sample = False
-        self.generation_cfg.num_beams = self.args.k
-        self.generation_cfg.num_return_sequences = self.args.k
+        self.generation_cfg.num_beams = self.args.generation_k
+        self.generation_cfg.num_return_sequences = self.args.generation_k
         self.generation_cfg.early_stopping = early_stopping
         
     def _configure_group_beam_search(self, early_stopping=False):
         """Configure for group beam search generation."""
         self.generation_cfg.do_sample = False
-        self.generation_cfg.num_beams = self.args.k
-        self.generation_cfg.num_return_sequences = self.args.k
-        self.generation_cfg.num_beam_groups = self.args.k
+        self.generation_cfg.num_beams = self.args.generation_k * 2
+        self.generation_cfg.num_return_sequences = self.args.generation_k
+        self.generation_cfg.num_beam_groups = min(self.args.generation_k, 5)
         self.generation_cfg.diversity_penalty = 1.0
         self.generation_cfg.early_stopping = early_stopping
 

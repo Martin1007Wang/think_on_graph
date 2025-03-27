@@ -14,7 +14,7 @@ from transformers import (
 )
 from trl import CPOTrainer, CPOConfig, DataCollatorForCompletionOnlyLM
 from peft import LoraConfig
-from src.template import Template
+from src.template import KnowledgeGraphTemplates
 from tqdm.auto import tqdm
 from transformers.trainer_utils import get_last_checkpoint
 
@@ -34,19 +34,26 @@ class Constants:
 class ScriptArguments:
     data_path_list: List[str] = field(metadata={"help": "Path to the training data."})
     model_name_or_path: str = field(default="meta-llama/Llama-2-7b-chat-hf", metadata={"help": "The model name"})
+    
     use_peft: bool = field(default=False,metadata={"help": "Whether to use PEFT or not to train adapters"},)
     save_merged: bool = field(default=False, metadata={"help": "Whether to save merged model"})
     lora_alpha: float = field(default=16,metadata={"help": "The lora alpha parameter"})
     lora_dropout: float = field(default=0.05, metadata={"help": "The lora dropout parameter"})
     lora_r: int = field(default=8, metadata={"help": "The lora r parameter"})
+    
     max_neg_paths: int = field(default=3,metadata={"help": "Maximum number of negative paths to consider per example"})
+    
     load_in_4bit: bool = field(default=False, metadata={"help": "Load model in 4bit"})
     load_in_8bit: bool = field(default=False,metadata={"help": "Load model in 8bit"})
+    
     attn_implementation: str = field(default="eager",metadata={"help": "Attention implementation (eager, flash_attention_2)"})
+    
     beta: float = field(default=0.1,metadata={"help": "The beta parameter for CPO"})
     loss_type: str = field(default="simpo",metadata={"help": "Loss type for CPO (sigmoid, hinge, ipo, simpo)"})
     cpo_alpha: float = field(default=0.1,metadata={"help": "The alpha parameter for CPO-SimPO"})
+    
     batch_size: int = field(default=4, metadata={"help": "Batch size for training"})
+    
     response_template: str = field(default="", metadata={"help": "Response template"})
     max_length: int = field(default=512, metadata={"help": "Maximum sequence length"})
     max_prompt_length: int = field(default=256, metadata={"help": "Maximum prompt length"})
@@ -61,14 +68,14 @@ class TrainingConfig(TrainingArguments):
     remove_unused_columns: bool = field(default=False)
     per_device_train_batch_size: int = field(default=4)
 
-def prepare_cpo_dataset(data_paths, tokenizer, args):
-    logger.info(f"Preparing CPO dataset from {len(data_paths)} sources")
+def prepare_preference_dataset(data_paths, tokenizer, args):
+    logger.info(f"Preparing preference dataset from {len(data_paths)} sources")
     data_list = [datasets.load_from_disk(path) for path in tqdm(data_paths, desc="Loading datasets")]
     dataset = datasets.concatenate_datasets(data_list)
-    prompt_template = Template.ZERO_SHOT_PROMPT
-    semantic_template = Template.SEMANTIC_PATH_TEMPLATE
-    shortest_template = Template.SHORTEST_PATH_TEMPLATE
-    negative_template = Template.NEGATIVE_PATH_TEMPLATE
+    prompt_template = KnowledgeGraphTemplates.ZERO_SHOT_PROMPT
+    semantic_template = KnowledgeGraphTemplates.SEMANTIC_PATH_TEMPLATE
+    shortest_template = KnowledgeGraphTemplates.SHORTEST_PATH_TEMPLATE
+    negative_template = KnowledgeGraphTemplates.NEGATIVE_PATH_TEMPLATE
     all_samples = []
     def input_formatter(example):
         question = example.get("question", "")
@@ -119,7 +126,7 @@ def prepare_cpo_dataset(data_paths, tokenizer, args):
     return preference_dataset
 
 def train():
-    logger.info(f"Starting training pipeline")
+    logger.info(f"Starting CPO training pipeline")
     parser = HfArgumentParser((ScriptArguments, TrainingConfig))
     args, training_args = parser.parse_args_into_dataclasses()
     model_kwargs = {
@@ -151,7 +158,7 @@ def train():
     special_tokens_dict['additional_special_tokens'] = [Constants.PATH_START_TOKEN, Constants.PATH_END_TOKEN]
     tokenizer.add_special_tokens(special_tokens_dict)
     model.resize_token_embeddings(len(tokenizer))
-    cpo_dataset = prepare_cpo_dataset(args.data_path_list, tokenizer, args)
+    cpo_dataset = prepare_preference_dataset(args.data_path_list, tokenizer, args)
     if training_args.local_rank != -1:
         torch.distributed.barrier()
         logger.info(f"Process {training_args.local_rank} passed data preparation barrier")
@@ -162,6 +169,9 @@ def train():
         max_length=args.max_length,
         max_prompt_length=args.max_prompt_length,
         padding_value=tokenizer.pad_token_id,
+        save_strategy="epoch",
+        save_total_limit=2,
+        overwrite_output_dir=True,
     )
     if training_args.local_rank != -1:
         torch.distributed.barrier()
