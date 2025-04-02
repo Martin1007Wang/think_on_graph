@@ -218,13 +218,13 @@ def main(args: argparse.Namespace) -> None:
     
     try:
         # 加载数据集
-        logger.info(f"Loading dataset from {args.data_path}/{args.d}...")
-        input_file = os.path.join(args.data_path, args.d)
+        logger.info(f"Loading dataset from {args.data_path}/{args.data_name}...")
+        input_file = os.path.join(args.data_path, args.data_name)
         dataset = load_dataset(input_file, split=args.split)
         
         # 设置输出目录
         post_fix = f"{args.prefix}iterative-rounds{args.max_rounds}-topk{args.top_k_relations}"
-        data_name = args.d + "_undirected" if args.undirected else args.d
+        data_name = args.data_name + "_undirected" if args.undirected else args.data_name
         output_dir = os.path.join(args.predict_path, data_name, args.model_name, args.split, post_fix)
         
         logger.info(f"Results will be saved to: {output_dir}")
@@ -252,33 +252,15 @@ def main(args: argparse.Namespace) -> None:
             use_cache=True
         )
         
-        # 处理数据集
-        if args.n > 1:
-            # 多进程处理
-            with Pool(args.n) as p:
-                for res in tqdm(
-                    p.imap(
-                        partial(explorer.process_question, processed_ids=processed_list),
-                        dataset,
-                    ),
-                    total=len(dataset),
-                ):
-                    if res is not None:
-                        if args.debug:
-                            print(json.dumps(res))
-                        fout.write(json.dumps(res) + "\n")
-                        fout.flush()
-        else:
-            # 单进程处理
-            for data in tqdm(dataset):
-                res = explorer.process_question(data, processed_list)
-                if res is not None:
-                    if args.debug:
-                        print(json.dumps(res))
-                    fout.write(json.dumps(res) + "\n")
-                    fout.flush()
-                else:
-                    logger.warning(f"None result for: {data.get('id', 'unknown')}")
+        for data in tqdm(dataset):
+            res = explorer.process_question(data, processed_list)
+            if res is not None:
+                if args.debug:
+                    print(json.dumps(res))
+                fout.write(json.dumps(res) + "\n")
+                fout.flush()
+            else:
+                logger.warning(f"None result for: {data.get('id', 'unknown')}")
                     
         # 关闭输出文件
         fout.close()
@@ -296,7 +278,7 @@ if __name__ == "__main__":
     
     # 数据参数
     parser.add_argument('--data_path', type=str, default='rmanluo', help="Path to the dataset directory")
-    parser.add_argument('--d', '-d', type=str, default='RoG-webqsp', help="Dataset name")
+    parser.add_argument('--data_name', type=str, default='RoG-webqsp', help="Dataset name")
     parser.add_argument('--split', type=str, default='test[:100]', help="Dataset split to use")
     
     # 输出参数
@@ -312,12 +294,12 @@ if __name__ == "__main__":
     # 推理参数
     parser.add_argument('--max_rounds', type=int, default=3, help="Maximum number of exploration rounds")
     parser.add_argument('--top_k_relations', type=int, default=5, help="Number of relations to select per entity")
-    parser.add_argument('--n', type=int, default=1, help="Number of parallel processes")
+    parser.add_argument('--n', type=int, default=10, help="Number of parallel processes")
     
     # 知识图谱参数
     parser.add_argument('--neo4j_uri', type=str, default='bolt://localhost:7687', help="Neo4j database URI")
     parser.add_argument('--neo4j_user', type=str, default='neo4j', help="Neo4j username")
-    parser.add_argument('--neo4j_password', type=str, default='password', help="Neo4j password")
+    parser.add_argument('--neo4j_password', type=str, default='Martin1007Wang', help="Neo4j password")
     parser.add_argument('--embedding_model', type=str, default='msmarco-distilbert-base-tas-b', help="Embedding model for entity search")
     parser.add_argument('--undirected', type=lambda x: (str(x).lower() == 'true'), default=False, help="Whether to treat the graph as undirected")
     

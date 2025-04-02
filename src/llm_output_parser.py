@@ -94,36 +94,51 @@ class LLMOutputParser:
         """解析推理输出。
 
         Args:
-            output: 语言模型生成的推理输出
+            output: 语言模型生成的推理输出，格式为：
+            [Answer: ...]
+            [Missing information: ...]
+            [Reasoning path:
+            1. ...
+            2. ...
+            ...]
 
         Returns:
-            包含决策、答案和推理路径的字典
+            包含答案和推理路径的字典
         """
         lines = output.strip().split('\n')
-        decision = "No"
         answer = ""
-        reasoning_path = ""
         missing_info = ""
+        reasoning_path = []
         
-        if lines:
-            first_line = lines[0].strip('[]')
-            if ': ' in first_line and first_line.startswith("Decision"):
-                decision = first_line.split(': ', 1)[1].strip()
+        # 初始化状态
+        in_reasoning_path = False
         
-        for line in lines[1:]:
-            line = line.strip('[]')
-            if line.startswith("Answer: "):
-                answer = line.split("Answer: ", 1)[1].strip()
-            elif line.startswith("Reasoning path: "):
-                reasoning_path = line.split("Reasoning path: ", 1)[1].strip()
-            elif line.startswith("Missing information: "):
-                missing_info = line.split("Missing information: ", 1)[1].strip()
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # 移除方括号
+            clean_line = line.strip('[]')
+            
+            if line.startswith('[Answer:'):
+                answer = clean_line.split('Answer:', 1)[1].strip()
+            elif line.startswith('[Missing information:'):
+                missing_info = clean_line.split('Missing information:', 1)[1].strip()
+            elif line.startswith('[Reasoning path:'):
+                in_reasoning_path = True
+                continue
+            elif line == ']' and in_reasoning_path:
+                in_reasoning_path = False
+            elif in_reasoning_path:
+                reasoning_path.append(clean_line)
         
-        if decision.lower() == "yes" and answer:
+        # 根据是否有答案决定返回结构
+        if answer:
             return {
                 "can_answer": True,
                 "answer": answer,
-                "reasoning_path": reasoning_path
+                "reasoning_path": '\n'.join(reasoning_path)
             }
         else:
             return {

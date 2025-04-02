@@ -3,8 +3,8 @@ DATA_PATH=rmanluo
 DATA_LIST="RoG-webqsp RoG-cwq"
 SPLIT="test"
 
-KGLLM_MODEL="GCR-Qwen2-0.5B-Instruct"
-MODEL_NAME="deepseek-r1-7b"
+KGLLM_MODEL="GCR-Qwen2-7B-Instruct"
+MODEL_NAME="deepseek-v3"
 N_THREAD=10
 
 # MODEL_NAME=gpt-4o-mini

@@ -7,7 +7,7 @@ from .graph_constrained_decoding_model import GraphConstrainedDecodingModel
 registed_language_models = {
     'gpt': ChatGPT,
     'others': HfCausalModel,
-    'gcr': GraphConstrainedDecodingModel,
+    # 'gcr': GraphConstrainedDecodingModel,
     'deepseek': SiliconFlowLLM,
 }
 

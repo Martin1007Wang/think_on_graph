@@ -6,8 +6,11 @@ deepspeed_config:
   offload_optimizer_device: none
   offload_param_device: none
   zero3_init_flag: false
-  zero3_save_16bit_model: true
-  zero_stage: 3
+  zero3_save_16bit_model: false
+  zero_stage: 2
+  bf16:
+    enabled: true
+  gradient_clipping: 1.0
 distributed_type: DEEPSPEED
 downcast_bf16: 'no'
 machine_rank: 0

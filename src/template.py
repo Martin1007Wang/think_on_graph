@@ -26,27 +26,6 @@ class KnowledgeGraphTemplates:
     - Do not include any introductory text, conclusions, or extra lines beyond the {relation_k} numbered items.
     """
 
-    ENTITY_RANKING = """
-    You are a knowledge graph reasoning expe rt. Given a question and a set of already explored entities, rank the candidate entities by their relevance to answering the question.
-    
-    # Question: 
-    {question}
-    
-    # Already explored entities: 
-    {explored}
-    
-    # Candidate entities to evaluate:
-    {candidates}
-    
-    For each candidate entity, assign a relevance score from 1-10 (10 being most relevant) based on:
-    1. Direct relevance to the question
-    2. Potential to connect to relevant information
-    3. Uniqueness compared to already explored entities
-    
-    Format your response as:
-    [Entity]: [Score] - [Brief justification]
-    """
-
     RELATION_SELECTION_WITH_CONTEXT = """
     You are a knowledge graph reasoning expert. Given a question, a topic entity, and the exploration history so far, select the most promising relations to explore next.
     
@@ -72,6 +51,29 @@ class KnowledgeGraphTemplates:
     - Avoid relations that would lead to already explored paths
     - Prioritize relations that fill gaps in the current knowledge
     """
+    
+    
+    ENTITY_RANKING = """
+    You are a knowledge graph reasoning expe rt. Given a question and a set of already explored entities, rank the candidate entities by their relevance to answering the question.
+    
+    # Question: 
+    {question}
+    
+    # Already explored entities: 
+    {explored}
+    
+    # Candidate entities to evaluate:
+    {candidates}
+    
+    For each candidate entity, assign a relevance score from 1-10 (10 being most relevant) based on:
+    1. Direct relevance to the question
+    2. Potential to connect to relevant information
+    3. Uniqueness compared to already explored entities
+    
+    Format your response as:
+    [Entity]: [Score] - [Brief justification]
+    """
+
 
     # === 推理与决策模板 ===
 
@@ -92,6 +94,13 @@ class KnowledgeGraphTemplates:
     [Decision: Yes/No]
     [Answer: your answer if Yes, otherwise leave blank]
     [Missing information: specify what additional relations or entities are needed if No, otherwise leave blank]
+    [Reasoning path: if Yes, provide a step-by-step path showing how you reached the answer:
+        1. Start with the initial entities
+        2. For each relevant step:
+           - Show the entity-relation-entity chain using format: Entity --[Relation]--> Target
+           - Only include steps that directly contribute to the answer
+        3. Conclude with how these connections lead to the answer
+    ]
     """
 
     FINAL_ANSWER = """
@@ -108,7 +117,7 @@ class KnowledgeGraphTemplates:
 
     Provide your final answer in this exact format, with no additional text outside the specified sections:
     [Final Answer: your concise answer to the question]
-    [Reasoning: brief explanation of how the answer was derived from the exploration]
+    [Reasoning path: brief explanation of how the answer was derived from the exploration]
     """
 
     # === 零样本和引导提示模板 ===

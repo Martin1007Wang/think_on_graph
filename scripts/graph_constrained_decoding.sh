@@ -1,15 +1,14 @@
+export HF_ENDPOINT=https://hf-mirror.com
 DATA_PATH=rmanluo
-DATA_LIST="RoG-webqsp RoG-cwq"
+DATA_NAME="RoG-webqsp"
 SPLIT="test"
-INDEX_LEN=2
-ATTN_IMP=flash_attention_2
 
-MODEL_PATH=save_models/GCR-Qwen2-0.5B-Instruct
-MODEL_NAME=$(basename "$MODEL_PATH")
+MODEL_NAME="GCR-Llama-3.1-8B-Instruct"
+MODEL_PATH="/mnt/wangjingxiong/think_on_graph/dpo_models/GCR-Llama-3.1-8B"
+GENERATION_K=5
+GENERATION_MODE="group-beam"
+ATTN_IMPLEMENTATION="flash_attention_2"
 
-K="10" # 3 5 10 20
-for DATA in ${DATA_LIST}; do
-  for k in $K; do
-    python workflow/predict_paths_and_answers.py --data_path ${DATA_PATH} --d ${DATA} --split ${SPLIT} --index_path_length ${INDEX_LEN} --model_name ${MODEL_NAME} --model_path ${MODEL_PATH} --k ${k} --prompt_mode zero-shot --generation_mode group-beam --attn_implementation ${ATTN_IMP}
-  done
+for DATA in ${DATA_NAME}; do
+  python workflow/predict_paths_and_answers_2.py --data_path ${DATA_PATH} --data_name ${DATA_NAME} --split ${SPLIT} --model_name ${MODEL_NAME} --model_path ${MODEL_PATH} --generation_k ${GENERATION_K} --generation_mode ${GENERATION_MODE} --attn_implementation ${ATTN_IMPLEMENTATION}
 done

@@ -5,6 +5,8 @@ logs
 tmp/
 .env
 save_models
+dpo_models/
+cpo_models/
 wandb/
 data/
 embeddings/

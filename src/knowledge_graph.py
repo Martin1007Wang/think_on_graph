@@ -207,6 +207,21 @@ class KnowledgeGraph:
                 """
             result = session.run(query, source_id=source_id, relation_type=relation_type)
             return [record["target_id"] for record in result]
+        
+    def get_related_relations(self, entity_id: str, direction: str = "out") -> List[str]:
+        with self.driver.session() as session:
+            if direction == "out":
+                query = """
+                MATCH (n:ENTITY {id: $entity_id})-[r:RELATION]->()
+                RETURN DISTINCT r.type as relation_type
+                """
+            else:  # "in"
+                query = """
+                MATCH ()-[r:RELATION]->(n:ENTITY {id: $entity_id})
+                RETURN DISTINCT r.type as relation_type
+                """
+            result = session.run(query, entity_id=entity_id)
+            return [record["relation_type"] for record in result]
 
     def get_all_entities(self):
         with self.driver.session() as session:
@@ -238,15 +253,6 @@ class KnowledgeGraph:
         result = [(self.id_2_relation[rel_indices[idx.item()]], score.item()) 
                  for score, idx in zip(scores, indices)]
         return result
-    
-    def get_related_relations(self, entity_id: str) -> List[Tuple[str, float]]:
-        with self.driver.session() as session:
-            query = """
-            MATCH (n:ENTITY {id: $entity_id})-[r:RELATION]-()
-            RETURN DISTINCT r.type as relation_type
-            """
-            result = session.run(query, entity_id=entity_id)
-            return [record["relation_type"] for record in result]
 
     def get_related_entities_by_question(self, question: str, top_k: int = 10) -> List[Tuple[str, float]]:
         question_emb = self.model.encode(question, convert_to_tensor=True, show_progress_bar=False)

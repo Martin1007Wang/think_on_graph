@@ -12,7 +12,7 @@ from multiprocessing.dummy import Pool
 from functools import partial
 from src.qa_prompt_builder import PromptBuilder
 from src.utils.graph_utils import build_graph, get_truth_paths
-from src.utils import path_to_string, load_jsonl, dfs
+from src.utils import list_to_string, load_jsonl, dfs
 from src.trie import MarisaTrie
 
 def get_output_file(path, force=False):
@@ -129,7 +129,7 @@ def merge_path_result(
             start_node = sample["q_entity"]
             answer_node = sample["a_entity"]
             truth_paths = get_truth_paths(start_node, answer_node, g)
-            sample["ground_paths"] = [path_to_string(path) for path in truth_paths]
+            sample["ground_paths"] = [list_to_string(path) for path in truth_paths]
         return sample  # TODO: ignore the sample with zero paths.
 
     qa_dataset = qa_dataset.map(find_path, num_proc=n_proc)
@@ -149,8 +149,8 @@ def get_all_paths(qa_dataset, length = 2, n_proc=1, filter_empty=False):
         answer_node = sample["a_entity"]
         all_paths = dfs(g, start_node, max_length=length)
         truth_paths = get_truth_paths(start_node, answer_node, g)
-        sample["predicted_paths"] = [path_to_string(path) for path in all_paths]
-        sample["ground_paths"] = [path_to_string(path) for path in truth_paths]
+        sample["predicted_paths"] = [list_to_string(path) for path in all_paths]
+        sample["ground_paths"] = [list_to_string(path) for path in truth_paths]
         return sample  # TODO: ignore the sample with zero paths.
 
     qa_dataset = qa_dataset.map(find_path, num_proc=n_proc)
