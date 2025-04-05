@@ -95,18 +95,21 @@ class LLMOutputParser:
 
         Args:
             output: 语言模型生成的推理输出，格式为：
-            [Answer: ...]
+            [Decision: Yes/No]
+            [Reasoning path: ...]
+            [Preliminary Answer: ...]
+            [Verification: ...]
+            [Final Answer: ...]
             [Missing information: ...]
-            [Reasoning path:
-            1. ...
-            2. ...
-            ...]
 
         Returns:
             包含答案和推理路径的字典
         """
         lines = output.strip().split('\n')
-        answer = ""
+        decision = ""
+        preliminary_answer = ""
+        verification = ""
+        final_answer = ""
         missing_info = ""
         reasoning_path = []
         
@@ -121,8 +124,14 @@ class LLMOutputParser:
             # 移除方括号
             clean_line = line.strip('[]')
             
-            if line.startswith('[Answer:'):
-                answer = clean_line.split('Answer:', 1)[1].strip()
+            if line.startswith('[Decision:'):
+                decision = clean_line.split('Decision:', 1)[1].strip()
+            elif line.startswith('[Preliminary Answer:'):
+                preliminary_answer = clean_line.split('Preliminary Answer:', 1)[1].strip()
+            elif line.startswith('[Verification:'):
+                verification = clean_line.split('Verification:', 1)[1].strip()
+            elif line.startswith('[Final Answer:'):
+                final_answer = clean_line.split('Final Answer:', 1)[1].strip()
             elif line.startswith('[Missing information:'):
                 missing_info = clean_line.split('Missing information:', 1)[1].strip()
             elif line.startswith('[Reasoning path:'):
@@ -133,12 +142,43 @@ class LLMOutputParser:
             elif in_reasoning_path:
                 reasoning_path.append(clean_line)
         
+        # 使用最终答案，如果有的话
+        answer = final_answer or preliminary_answer
+        
+        # 检查答案格式是否符合要求（不含句子结构）
+        has_sentence_structure = any(indicator in answer.lower() for indicator in [
+            " was ", " is ", " were ", " are ", " has ", " had ", " will ", " would ", 
+            " could ", " can ", " may ", " might ", ". ", " because ", " since ", 
+            " therefore ", " thus ", " hence ", " as a result"
+        ])
+        
         # 根据是否有答案决定返回结构
-        if answer:
+        if decision.lower() == 'yes' and answer:
+            # 提取验证结果中的置信度指示
+            is_verified = not any(phrase in verification.lower() for phrase in [
+                "cannot answer with confidence", 
+                "not supported by evidence",
+                "insufficient evidence",
+                "making assumptions",
+                "contradictions",
+                "inferences",
+                "combination",
+                "ambiguous",
+                "not directly stated"
+            ])
+            
+            # 如果答案包含句子结构，标记为未验证
+            if has_sentence_structure:
+                is_verified = False
+            
             return {
                 "can_answer": True,
                 "answer": answer,
-                "reasoning_path": '\n'.join(reasoning_path)
+                "reasoning_path": '\n'.join(reasoning_path),
+                "preliminary_answer": preliminary_answer,
+                "verification": verification,
+                "is_verified": is_verified,
+                "has_sentence_structure": has_sentence_structure
             }
         else:
             return {

@@ -1,0 +1,64 @@
+{
+    "id": "WebQTest-1161",
+    "question": "what is the clemson mascot name",
+    "ground_truth": [
+        "Clemson University The Tiger",
+        "The Tiger and the Cub"
+    ],
+    "start_entities": [
+        "Clemson University"
+    ],
+    "prediction": "The Tiger",
+    "exploration_history": [
+        {
+            "round": 1,
+            "expansions": [
+                {
+                    "entity": "Clemson University",
+                    "relations": [
+                        {
+                            "relation": "education.educational_institution.mascot",
+                            "targets": [
+                                "The Tiger and the Cub",
+                                "Clemson University The Tiger"
+                            ]
+                        },
+                        {
+                            "relation": "education.educational_institution.sports_teams",
+                            "targets": [
+                                "Clemson Tigers football",
+                                "Clemson Tigers men's basketball"
+                            ]
+                        },
+                        {
+                            "relation": "education.educational_institution.colors",
+                            "targets": [
+                                "Orange",
+                                "Purple"
+                            ]
+                        },
+                        {
+                            "relation": "education.educational_institution.sports_teams",
+                            "targets": [
+                                "Clemson Tigers football",
+                                "Clemson Tigers men's basketball"
+                            ]
+                        },
+                        {
+                            "relation": "education.educational_institution.athletics_brand",
+                            "targets": [
+                                "Clemson Tigers"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "answer_found": {
+                "answer": "The Tiger",
+                "reasoning_path": "1. Start with the initial entities: Clemson University\n2. Clemson University --[education.educational_institution.mascot]--> The Tiger and the Cub\n3. Clemson University --[education.educational_institution.mascot]--> Clemson University The Tiger"
+            }
+        }
+    ],
+    "answer_found_during_exploration": true,
+    "fallback_used": false
+}

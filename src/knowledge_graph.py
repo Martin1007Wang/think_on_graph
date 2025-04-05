@@ -45,10 +45,11 @@ class KnowledgeGraph:
             logger.error(f"Error processing sample: {e}")
             return []
 
-    def initialize_embeddings(self, dataset: str = "RoG-webqsp", split: str = "train", force_recompute: bool = False):
+    def initialize_embeddings(self, dataset, split, force_recompute: bool = False):
         logger.info("Initializing embeddings...")
         emb_dir = os.path.join("embeddings", dataset, split, self.model_name)
         os.makedirs(emb_dir, exist_ok=True)
+        logger.info(f"Embeddings will be saved to directory: {os.path.abspath(emb_dir)}")
 
         entity_emb_path = os.path.join(emb_dir, "entity_embeddings.pt")
         entity_2_id_path = os.path.join(emb_dir, "entity_2_id.pkl")
@@ -56,11 +57,6 @@ class KnowledgeGraph:
         relation_emb_path = os.path.join(emb_dir, "relation_embeddings.pt")
         relation_2_id_path = os.path.join(emb_dir, "relation_2_id.pkl")
         id_2_relation_path = os.path.join(emb_dir, "id_2_relation.pkl")
-        
-        load_from_disk = (not force_recompute and os.path.exists(entity_emb_path) and 
-                         os.path.exists(entity_2_id_path) and os.path.exists(id_2_entity_path) and 
-                         os.path.exists(relation_emb_path) and os.path.exists(relation_2_id_path) and 
-                         os.path.exists(id_2_relation_path))
         
         load_from_disk = (not force_recompute and os.path.exists(entity_emb_path) and 
                          os.path.exists(entity_2_id_path) and os.path.exists(id_2_entity_path) and 
@@ -93,6 +89,10 @@ class KnowledgeGraph:
                 self.entity_embeddings = self.model.encode(entity_ids, batch_size=1024, convert_to_tensor=True, show_progress_bar=True)
                 self.entity_2_id = {ent: i for i, ent in enumerate(entity_ids)}
                 self.id_2_entity = {i: ent for i, ent in enumerate(entity_ids)}
+                
+                # 保存实体嵌入向量到磁盘
+                logger.info(f"Saving entity embeddings to {entity_emb_path}")
+                torch.save(self.entity_embeddings, entity_emb_path)
                 with open(entity_2_id_path, 'wb') as f:
                     pickle.dump(self.entity_2_id, f)
                 with open(id_2_entity_path, 'wb') as f:
@@ -103,6 +103,10 @@ class KnowledgeGraph:
                 self.relation_embeddings = self.model.encode(relation_types, batch_size=1024, convert_to_tensor=True, show_progress_bar=True)
                 self.relation_2_id = {rel: i for i, rel in enumerate(relation_types)}
                 self.id_2_relation = {i: rel for i, rel in enumerate(relation_types)}
+                
+                # 保存关系嵌入向量到磁盘
+                logger.info(f"Saving relation embeddings to {relation_emb_path}")
+                torch.save(self.relation_embeddings, relation_emb_path)
                 with open(relation_2_id_path, 'wb') as f:
                     pickle.dump(self.relation_2_id, f)
                 with open(id_2_relation_path, 'wb') as f:
@@ -141,7 +145,7 @@ class KnowledgeGraph:
             if batch:
                 session.execute_write(_run_batch)
 
-    def load_graph_from_dataset(self, input_file: str, dataset: str = "RoG-webqsp", split: str = "train", batch_size: int = 1024):
+    def load_graph_from_dataset(self, input_file, dataset, split, batch_size: int = 1024):
         """Load graph data from a dataset and initialize embeddings."""
         logger.info(f"Loading dataset from {input_file}, split: {split}")
         dataset_obj = load_dataset(input_file, split=split)

@@ -62,7 +62,7 @@ def eval_f1(prediction, answer):
 
 def extract_topk_prediction(prediction, k=-1):
     if isinstance(prediction, str):
-        prediction = prediction.split(",")
+        prediction = prediction.split("\n")
     results = {}
     for p in prediction:
         if p.strip() == "":
@@ -464,18 +464,9 @@ def eval_path_result(predict_file, cal_f1=True, topk=-1):
         f.write(result_str)
 
 def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
-    """评估预测结果，专注于答案的有效性而非路径的合理性。
-    
-    Args:
-        predict_file (str): 预测结果文件路径
-        cal_f1 (bool): 是否计算F1分数
-        topk (int): 评估前K个预测，-1表示所有
-        
-    Returns:
-        None: 结果写入文件
-    """
+    # predict_file = os.path.join(result_path, 'predictions.jsonl')
     eval_name = (
-        f"detailed_eval_result_top_{topk}.jsonl"
+        "detailed_eval_result_top_{topk}.jsonl"
         if topk > 0
         else "detailed_eval_result.jsonl"
     )
@@ -486,7 +477,12 @@ def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
     f1_list = []
     precission_list = []
     recall_list = []
-    
+    path_ans_f1_list = []
+    path_ans_precission_list = []
+    path_ans_recall_list = []
+    path_f1_list = []
+    path_precission_list = []
+    path_recall_list = []
     with open(predict_file, "r") as f, open(detailed_eval_file, "w") as f2:
         for line in f:
             try:
@@ -494,35 +490,39 @@ def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
             except:
                 print(line)
                 continue
-                
             id = data["id"]
             prediction = data["prediction"]
             answer = list(set(data["ground_truth"]))
-            
             if cal_f1:
                 prediction = extract_topk_prediction(prediction, topk)
                 
+                predicted_path = []
                 predicted_ans = []
                 for p in prediction:
-                    # 简化处理，只提取答案部分
-                    if "# Answer:\n" in p:
-                        ans = p.split("# Answer:\n")[-1]
-                        predicted_ans.append(ans.strip())
-                    else:
-                        # 如果没有特定格式，则将整个预测作为答案
-                        predicted_ans.append(p.strip())
+                    ans = p.split("# Answer:\n")[-1]
+                    path = p.split("# Answer:\n")[0].split("# Reasoning Path:\n")[-1]
+                    predicted_path.append(path.strip())
+                    predicted_ans.append(ans.strip())
                 
                 f1_score, precision_score, recall_score = eval_f1(predicted_ans, answer)
+                path_ans_f1_score, path_ans_precision_score, path_ans_recall_score = eval_f1(predicted_path, answer)
+                path_ans_f1_list.append(path_ans_f1_score)
+                path_ans_precission_list.append(path_ans_precision_score)
+                path_ans_recall_list.append(path_ans_recall_score)
                 f1_list.append(f1_score)
                 precission_list.append(precision_score)
                 recall_list.append(recall_score)
-                
                 prediction_str = " ".join(prediction)
                 acc = eval_acc(prediction_str, answer)
                 hit = eval_hit(prediction_str, answer)
                 acc_list.append(acc)
                 hit_list.append(hit)
-                
+                path_f1_score, path_precision_score, path_recall_score = eval_f1(
+                    predicted_path, data["ground_truth_paths"]
+                )
+                path_f1_list.append(path_f1_score)
+                path_precission_list.append(path_precision_score)
+                path_recall_list.append(path_recall_score)
                 f2.write(
                     json.dumps(
                         {
@@ -532,8 +532,14 @@ def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
                             "ans_acc": acc,
                             "ans_hit": hit,
                             "ans_f1": f1_score,
-                            "ans_precision": precision_score,
+                            "ans_precission": precision_score,
                             "ans_recall": recall_score,
+                            "path_f1": path_f1_score,
+                            "path_precision": path_precision_score,
+                            "path_recall": path_recall_score,
+                            "path_ans_f1": path_ans_f1_score,
+                            "path_ans_precision": path_ans_precision_score,
+                            "path_ans_recall": path_ans_recall_score,
                         }
                     )
                     + "\n"
@@ -557,21 +563,16 @@ def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
                 )
 
     if len(f1_list) > 0:
-        result_str = (
-            f"Accuracy: {sum(acc_list) * 100 / len(acc_list):.2f}% "
-            f"Hit: {sum(hit_list) * 100 / len(hit_list):.2f}% "
-            f"F1: {sum(f1_list) * 100 / len(f1_list):.2f}% "
-            f"Precision: {sum(precission_list) * 100 / len(precission_list):.2f}% "
-            f"Recall: {sum(recall_list) * 100 / len(recall_list):.2f}%"
-        )
+        result_str = f"Accuracy: {sum(acc_list) * 100 / len(acc_list)} Hit: {sum(hit_list) * 100 / len(hit_list)} F1: {sum(f1_list) * 100 / len(f1_list)} Precision: {sum(precission_list) * 100 / len(precission_list)} Recall: {sum(recall_list) * 100 / len(recall_list)} Path F1: {sum(path_f1_list) * 100 / len(path_f1_list)} Path Precision: {sum(path_precission_list) * 100 / len(path_precission_list)} Path Recall: {sum(path_recall_list) * 100 / len(path_recall_list)} Path Answer F1: {sum(path_ans_f1_list) * 100 / len(path_ans_f1_list)} Path Answer Precision: {sum(path_ans_precission_list) * 100 / len(path_ans_precission_list)} Path Answer Recall: {sum(path_ans_recall_list) * 100 / len(path_ans_recall_list)}"
     else:
         result_str = (
-            f"Accuracy: {sum(acc_list) * 100 / len(acc_list):.2f}% "
-            f"Hit: {sum(hit_list) * 100 / len(hit_list):.2f}%"
+            "Accuracy: "
+            + str(sum(acc_list) * 100 / len(acc_list))
+            + " Hit: "
+            + str(sum(hit_list) * 100 / len(hit_list))
         )
     print(result_str)
-    
-    result_name = f"eval_result_top_{topk}.txt" if topk > 0 else "eval_result.txt"
+    result_name = "eval_result_top_{topk}.txt" if topk > 0 else "eval_result.txt"
     eval_result_path = predict_file.replace("predictions.jsonl", result_name)
     with open(eval_result_path, "w") as f:
         f.write(result_str)

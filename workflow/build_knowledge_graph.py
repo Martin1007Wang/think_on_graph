@@ -42,7 +42,7 @@ def main():
         if not os.path.exists(input_file):
             logger.warning(f"Warning: {input_file} does not exist as a file")
 
-        kg.load_graph_from_dataset(input_file, args.split)
+        kg.load_graph_from_dataset(input_file, args.dataset, args.split)
     finally:
         kg.close()
 

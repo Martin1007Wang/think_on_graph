@@ -41,118 +41,6 @@ def setup_logging(name: str = "kg_qa", level: int = logging.INFO) -> logging.Log
 
 logger = setup_logging()
 
-# 提示模板集中管理
-class PromptTemplates:
-    """管理系统中使用的所有提示模板。"""
-    
-    RELATION_SELECTION = """
-You are a knowledge graph reasoning expert. Given a question and a topic entity, your task is to select the most relevant relations to explore from the provided list.
-
-# Question: 
-{question}
-
-# Topic entity: 
-{entity}
-
-# Available relations from this entity (select only from these):
-{relations}
-
-Select exactly {relation_k} relations that are most relevant to answering the question. Your response must follow this exact format, with no additional text outside the numbered list:
-1. [relation_name] - [brief explanation of relevance]
-2. [relation_name] - [brief explanation of relevance]
-...
-{relation_k}. [relation_name] - [brief explanation of relevance]
-
-- Only choose relations from the provided list.
-- If fewer than {relation_k} relations are relevant, repeat the most relevant relation to fill the list.
-- Do not include any introductory text, conclusions, or extra lines beyond the {relation_k} numbered items.
-"""
-
-    ENTITY_RANKING = """
-    You are a knowledge graph reasoning expert. Given a question and a set of already explored entities, 
-    rank the candidate entities by their relevance to answering the question.
-    
-    # Question: 
-    {question}
-    
-    # Already explored entities: 
-    {explored}
-    
-    # Candidate entities to evaluate:
-    {candidates}
-    
-    For each candidate entity, assign a relevance score from 1-10 (10 being most relevant) based on:
-    1. Direct relevance to the question
-    2. Potential to connect to relevant information
-    3. Uniqueness compared to already explored entities
-    
-    Format your response as:
-    [Entity]: [Score] - [Brief justification]
-    """
-    
-    RELATION_SELECTION_WITH_CONTEXT = """
-    You are a knowledge graph reasoning expert. Given a question, a topic entity, and the exploration history so far,
-    select the most promising relations to explore next.
-    
-    # Question: 
-    {question}
-    
-    # Current entity to expand: 
-    {entity}
-    
-    # Exploration history so far:
-    {history}
-    
-    # Available relations from this entity (select only from these):
-    {relations}
-    
-    Select exactly {relation_k} relations that are most likely to lead to the answer. Your response must follow this exact format:
-    1. [relation_name] - [brief explanation of relevance]
-    2. [relation_name] - [brief explanation of relevance]
-    ...
-    
-    Consider:
-    - Which relations might connect to information needed to answer the question
-    - Avoid relations that would lead to already explored paths
-    - Prioritize relations that fill gaps in the current knowledge
-    """
-    
-    REASONING = """
-    You are a knowledge graph reasoning expert. Given a question and information gathered from a knowledge graph, determine if you can answer the question.
-
-    # Question: 
-    {question}
-
-    # Starting entities: 
-    {entity}
-
-    # Knowledge graph exploration (over {num_rounds} rounds):
-    {exploration_history}
-
-    Based on the information above, can you answer the question? Respond in this exact format, with no additional text outside the specified sections:
-
-    [Decision: Yes/No]
-    [Answer: your answer if Yes, otherwise leave blank]
-    [Reasoning path: specify the exact path of relations and entities if Yes, otherwise leave blank]
-    [Missing information: specify what additional relations or entities are needed if No, otherwise leave blank]
-    """
-
-    FINAL_ANSWER = """
-    You are a knowledge graph reasoning expert. Based on the exploration of the knowledge graph, provide a final answer to the question.
-
-    # Question: 
-    {question}
-
-    # Starting entities: 
-    {entity}
-
-    # Complete exploration:
-    {full_exploration}
-
-    Provide your final answer in this exact format, with no additional text outside the specified sections:
-    [Final Answer: your concise answer to the question]
-    [Reasoning: brief explanation of how the answer was derived from the exploration]
-    """
     
 class FileHandler:
     """处理文件读写操作。"""
@@ -201,6 +89,42 @@ class FileHandler:
         with open(os.path.join(output_dir, 'args.txt'), 'w') as f:
             json.dump(args.__dict__, f, indent=2)
             
+def ensure_ground_truth(predictions_path: str, dataset: Any) -> None:
+    """检查预测文件中是否包含ground_truth字段，如果没有则从数据集中添加。
+    
+    Args:
+        predictions_path: 预测结果文件路径
+        dataset: 原始数据集
+    """
+    logger.info("Checking for ground_truth field in predictions...")
+    
+    # 创建id到answer的映射
+    dataset_answers = {}
+    for item in dataset:
+        if "id" in item and "answer" in item:
+            dataset_answers[item["id"]] = item["answer"]
+    
+    # 读取预测文件
+    with open(predictions_path, "r") as f:
+        predictions = [json.loads(line) for line in f]
+    
+    # 检查并添加ground_truth
+    needs_update = False
+    for pred in predictions:
+        if "id" in pred and "ground_truth" not in pred:
+            if pred["id"] in dataset_answers:
+                pred["ground_truth"] = dataset_answers[pred["id"]]
+                needs_update = True
+    
+    # 如果需要更新，重写文件
+    if needs_update:
+        logger.info("Adding missing ground_truth fields to predictions...")
+        with open(predictions_path, "w") as f:
+            for pred in predictions:
+                f.write(json.dumps(pred) + "\n")
+    else:
+        logger.info("All predictions already have ground_truth field.")
+
 def main(args: argparse.Namespace) -> None:
     """主函数，协调整个执行流程。
 
@@ -249,7 +173,6 @@ def main(args: argparse.Namespace) -> None:
             model=model, 
             max_rounds=args.max_rounds, 
             relation_k=args.top_k_relations,
-            use_cache=True
         )
         
         for data in tqdm(dataset):
@@ -261,12 +184,33 @@ def main(args: argparse.Namespace) -> None:
                 fout.flush()
             else:
                 logger.warning(f"None result for: {data.get('id', 'unknown')}")
-                    
+        
+        # target_id = "WebQTest-1161"
+        # found = False
+
+        # for data in dataset:
+        #     if data.get("id") == target_id:
+        #         found = True
+        #         logger.info(f"Processing only the target item (id: {target_id})")
+        #         res = explorer.process_question(data, processed_list)
+        #         if res is not None:
+        #             if args.debug:
+        #                 print(json.dumps(res))
+        #             fout.write(json.dumps(res) + "\n")
+        #             fout.flush()
+        #         else:
+        #             logger.warning(f"None result for target id: {target_id}")
+        #         break
+
+        # if not found:
+        #     logger.warning(f"Target item with id '{target_id}' not found in dataset")
+        
         # 关闭输出文件
         fout.close()
         
         # 评估结果
         logger.info("Evaluating results...")
+        
         eval_path_result_w_ans(predictions_path)
         
     finally:
@@ -282,7 +226,7 @@ if __name__ == "__main__":
     parser.add_argument('--split', type=str, default='test[:100]', help="Dataset split to use")
     
     # 输出参数
-    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning', help="Path to save prediction results")
+    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning_v2', help="Path to save prediction results")
     parser.add_argument('--force', action='store_true', help="Force overwrite existing results")
     parser.add_argument('--debug', action='store_true', help="Print debug information")
     parser.add_argument('--prefix', type=str, default="", help="Prefix for result directory")

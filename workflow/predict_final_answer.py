@@ -167,55 +167,26 @@ def main(args, LLM):
     # Load dataset
     dataset = load_dataset(input_file, split=args.split)
     if args.add_path:
-        if args.use_all:
-            max_length = 2
-            prediction_suffix = f"add_all_path_{max_length}"
-            dataset = get_all_paths(
-                dataset,
-                length=max_length,
-                filter_empty=args.filter_empty,
-            )
-        else:
-            path_name = "_".join(args.reasoning_path.split("/")[:-1])
-            # Prevent too long path name
-            if len(path_name) > 64:
-                path_name_md5 = hashlib.md5(path_name.encode()).hexdigest()
-                path_name = path_name[:64] + "_" + path_name_md5
-            prediction_suffix = f"add_path_{path_name}"
-            paths_datasets = []
-            with open(args.reasoning_path, "r") as f:
-                for line in f:
-                    paths_datasets.append(json.loads(line))
-            dataset = merge_path_result(
-                dataset,
-                paths_datasets,
-                filter_empty=args.filter_empty,
-                remove_dup_path=args.remove_dup_path,
-            )
-        if args.filter_empty:
-            prediction_suffix += "_filter_empty"
-        if args.use_true:
-            prediction_suffix = "add_true_path"
+        path_name = "_".join(args.reasoning_path.split("/")[:-1])
+        # Prevent too long path name
+        if len(path_name) > 64:
+            path_name_md5 = hashlib.md5(path_name.encode()).hexdigest()
+            path_name = path_name[:64] + "_" + path_name_md5
+        prediction_suffix = f"add_path_{path_name}"
+        paths_datasets = []
+        with open(args.reasoning_path, "r") as f:
+            for line in f:
+                paths_datasets.append(json.loads(line))
+        dataset = merge_path_result(
+            dataset,
+            paths_datasets,
+            filter_empty=args.filter_empty,
+            remove_dup_path=args.remove_dup_path,
+        )
         if args.remove_dup_path:
             prediction_suffix += "_no_dup"
-        if  "use_assistant_model" in vars(args) and args.use_assistant_model:
-            if args.assistant_model_path is None:
-                raise ValueError("Assistant model path is None")
-            assistant_model_name = args.assistant_model_path.split("/")[-1]
-            if len(assistant_model_name) > 64:
-                assistant_model_name_md5 = hashlib.md5(assistant_model_name.encode()).hexdigest()
-                assistant_model_name = assistant_model_name[:64] + "_" + assistant_model_name_md5
-            prediction_suffix += f"_assistant_{assistant_model_name}"
-    elif args.add_rule:
-        prediction_suffix = args.rule_path.replace("/", "_").replace(".", "_")
-        rule_dataset = load_jsonl(args.rule_path)
-        dataset = merge_rule_result(dataset, rule_dataset, args.n, args.filter_empty)
     else:
         prediction_suffix = "no-path"
-    if args.use_rog_prompt:
-        prediction_suffix += "_rog_prompt"
-    if "gcr" in args.model_name:
-        prediction_suffix += f"_k_{args.k}_gen_{args.generation_mode}"
     prediction_suffix = args.prefix + prediction_suffix
     
     output_dir = os.path.join(
@@ -229,7 +200,6 @@ def main(args, LLM):
     model = LLM(args)
 
     input_builder = PromptBuilder(
-        add_rule=args.add_rule,
         add_path=args.add_path,
         use_true=args.use_true,
         maximun_token=model.maximun_token,
@@ -297,7 +267,6 @@ if __name__ == "__main__":
         type=str,
         default="/home/lluo/projects/LLMRuleQA/results/gen_rule_path/webqsp/Llama-2-7b-chat-hf_align-spectoken-joint-explainqa/test/predictions_3_False.jsonl",
     )
-    argparser.add_argument("--add_rule", type=lambda x: (str(x).lower() == "true"), default=False)
     argparser.add_argument(
         "--add_path", type=lambda x: (str(x).lower() == "true"), default=False
     )

@@ -1,4 +1,4 @@
-import src.utils as utils
+import src.utils_original as utils
 import random
 from typing import Callable
 from .trie import MarisaTrie
