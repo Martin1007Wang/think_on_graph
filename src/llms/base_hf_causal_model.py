@@ -33,7 +33,7 @@ class HfCausalModel(BaseLanguageModel):
     def add_args(parser):
         """Add model-specific arguments to the parser."""
         group = parser.add_argument_group("HfCausalModel")
-        group.add_argument("--maximum_token", type=int, default=4096, 
+        group.add_argument("--maximum_token", type=int, default=8192, 
                           help="Maximum token length for input")
         group.add_argument("--max_new_tokens", type=int, default=1024,
                           help="Maximum number of new tokens to generate")

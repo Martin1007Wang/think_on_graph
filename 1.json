@@ -1,64 +1,141 @@
 {
-    "id": "WebQTest-1161",
-    "question": "what is the clemson mascot name",
-    "ground_truth": [
-        "Clemson University The Tiger",
-        "The Tiger and the Cub"
+    "trace_id": "35675EE5266F436187C89A08200A10B4",
+    "total_level": 1,
+    "participated_vertexes": [
+      "AgentNetworkPlannerGroup/AgentNetworkPlanner",
+      "XMLGroup"
     ],
-    "start_entities": [
-        "Clemson University"
-    ],
-    "prediction": "The Tiger",
-    "exploration_history": [
-        {
-            "round": 1,
-            "expansions": [
-                {
-                    "entity": "Clemson University",
-                    "relations": [
-                        {
-                            "relation": "education.educational_institution.mascot",
-                            "targets": [
-                                "The Tiger and the Cub",
-                                "Clemson University The Tiger"
-                            ]
-                        },
-                        {
-                            "relation": "education.educational_institution.sports_teams",
-                            "targets": [
-                                "Clemson Tigers football",
-                                "Clemson Tigers men's basketball"
-                            ]
-                        },
-                        {
-                            "relation": "education.educational_institution.colors",
-                            "targets": [
-                                "Orange",
-                                "Purple"
-                            ]
-                        },
-                        {
-                            "relation": "education.educational_institution.sports_teams",
-                            "targets": [
-                                "Clemson Tigers football",
-                                "Clemson Tigers men's basketball"
-                            ]
-                        },
-                        {
-                            "relation": "education.educational_institution.athletics_brand",
-                            "targets": [
-                                "Clemson Tigers"
-                            ]
-                        }
-                    ]
-                }
+    "vertexes_count": 2,
+    "level_details": [
+      {
+        "level": 1,
+        "level_vertexes": [
+          "AgentNetworkPlannerGroup/AgentNetworkPlanner"
+        ],
+        "level_spans": {
+          "AgentNetworkPlannerGroup/AgentNetworkPlanner": {
+            "messages": [
+              {
+                "role": "system",
+                "content": "### 角色 ###\n你是一个团队中专业的任务规划者，善于根据团队中成员的能力，将用户需求分解成子任务，按顺序分配给团队中的其他成员完成。\n\n",
+                "token": 0,
+                "cost": 0
+              },
+              {
+                "role": "user",
+                "content": "现在用户的需求是：在给定的XML格式的学术论文中，找到一种牛奶巧克力的成分比例。根据文献数据中的信息，如果非纤维碳水化合物、蛋白质和脂肪的比例为2:1，并按照这个顺序排列，请给出非纤维碳水化合物（X）、蛋白质（Y）的具体数值（不包含%符号）。",
+                "token": 0,
+                "cost": 0
+              },
+              {
+                "role": "user",
+                "content": "### 团队成员 ###\n你的团队中有以下成员：\n\nPdfGenAgentGroup: PDF文件生成智能体，擅长根据提供的文本内容进行扩写和填充，如生成报告、总结等，最终将其包装成PDF形式的文件，或者将Word文档转换为PDF文档。输入参数有 task（任务要求）和 generate_content（生成内容的详细描述），file_path(Word文档的URL地址)；返回结果为 result （结果，生成PDF的URL地址）\nTxtGroup: 专门用于读取和处理文本文件(TXT)的智能助手。可通过本地文件路径或URL链接获取文本内容，支持从任务描述中提取URL并获取内容。适用于需要文本提取、内容分析或处理链接中文本的场景。\nCalculatorGroup: 计算器，可进行简单的计算任务，接收一个精确的可计算的计算任务描述字符串，任务描述必须包含必须的数据，否则将无法计算！计算后会返回计算任务结果\nCSVGroup: CSV 任务助手\nPPTGroup: 处理PPT文件的工具组\nReasoningGroup: 推理智能体组\nExcelGenGroup: Excel生成智能体组\nImageGenAgentGroup: 图像生成智能组，用于根据输入的一段文本生成图片。输入参数为 image_prompt（用于生成图片的文本） ；返回结果为result（结果，生成图片的URL地址）\nOCRParserGroup: 按照指定要求，从文件中解析文字内容，接收两个参数 query（要求）和 ocr_file_path（文件路径），返回 ocr_parser_result（解析结果）\nDirectionAgentGroup: 根据任务生成导航信息，并返回\nFLOW-NODE-QUERY-SUNING-BY-TEXT: 苏宁易购搜索商品工具，可在苏宁易购网站上搜索所需的商品，接受一个搜索内容描述字符串，搜索内容为需要搜索的商品名字，包括用户需要的限定词，搜索后会返回搜索结果，如果查询成功g_code返回0，如果查询失败 g_code返回小于0的值，具体错误信息返回到字段g_message\nWordAgentGroup: Word智能体组，用于处理Word文档\nCSVGeneratorAgentGroup: CSV文件生成工具\nPythonAgentGroup: Python代码生成智能组\nWordGenerationAgentGroup: 根据用户输入内容生成word文档\nPdfAgentGroup: PDF文件处理智能组，用于处理与PDF文件相关的任务\nFLOW-NODE-QUERY-SUNING-AIRCONDITION-BY-TEXT: 苏宁易购搜索空调工具，可在苏宁易购网站上搜索空调数据，接受一个搜索内容描述字符串，搜索内容为需要搜索的空调名称信息，包括用户需要的限定词，搜索后会返回搜索结果，如果查询成功g_code返回0，同时g_excel返回保存查询信息的Excel文档网络地址，如果查询失败 g_code返回小于0的值，具体错误信息返回到字段g_message\nSearchGroup: 完成搜索任务\nImageAgentGroup: 描述输入的图片信息\nUnzipGroup: 处理ZIP压缩文件并且生成压缩文件包里解压出的文件列表的下载链接的工具组\nExcelGroup: 帮忙完成一些处理Excel文件的任务\nXMLGroup: 根据用户需求解析、验证、转换和处理XML文档，提供结构化数据提取和操作功能\n\n### 目标 ###\n给定用户需求，你需要理解用户需求，并根据团队中成员的能力，为团队成员分配任务，形成一个可以完成用户需求的工作流。\n\n### 返回方式 ###\n请以 JSON 方式返回一个子任务列表，列表中的每一项包含两个字段：\n\ntask: 任务名称；\nexecutor: 执行任务的成员；\n\n### 返回示例 ###\n[\n    {\n        \"task\": \"...\",\n        \"executor\": \"...\",\n    },\n    {\n        \"...\"\n    }\n]\n",
+                "token": 0,
+                "cost": 0
+              },
+              {
+                "role": "assistant",
+                "content": [
+                  {
+                    "task": "解析给定的XML格式的学术论文，提取关于牛奶巧克力成分的信息",
+                    "executor": "XMLGroup"
+                  },
+                  {
+                    "task": "在提取的成分信息中，查找符合非纤维碳水化合物、蛋白质和脂肪比例为2:1的记录",
+                    "executor": "ReasoningGroup"
+                  },
+                  {
+                    "task": "计算并给出非纤维碳水化合物（X）、蛋白质（Y）的具体数值",
+                    "executor": "CalculatorGroup"
+                  }
+                ],
+                "token": 1048,
+                "cost": 0.002556
+              }
             ],
-            "answer_found": {
-                "answer": "The Tiger",
-                "reasoning_path": "1. Start with the initial entities: Clemson University\n2. Clemson University --[education.educational_institution.mascot]--> The Tiger and the Cub\n3. Clemson University --[education.educational_institution.mascot]--> Clemson University The Tiger"
+            "params": [
+              {
+                "title": "task",
+                "name": "task",
+                "description": "用户任务需求",
+                "value": "在给定的XML格式的学术论文中，找到一种牛奶巧克力的成分比例。根据文献数据中的信息，如果非纤维碳水化合物、蛋白质和脂肪的比例为2:1，并按照这个顺序排列，请给出非纤维碳水化合物（X）、蛋白质（Y）的具体数值（不包含%符号）。",
+                "type": "str"
+              }
+            ],
+            "results": [
+              {
+                "title": "result",
+                "name": "sub_tasks",
+                "description": "分解成的子任务",
+                "value": [
+                  {
+                    "task": "解析给定的XML格式的学术论文，提取关于牛奶巧克力成分的信息",
+                    "executor": "XMLGroup"
+                  },
+                  {
+                    "task": "在提取的成分信息中，查找符合非纤维碳水化合物、蛋白质和脂肪比例为2:1的记录",
+                    "executor": "ReasoningGroup"
+                  },
+                  {
+                    "task": "计算并给出非纤维碳水化合物（X）、蛋白质（Y）的具体数值",
+                    "executor": "CalculatorGroup"
+                  }
+                ],
+                "type": "str"
+              }
+            ],
+            "spans": [
+              "AgentNetworkPlannerGroup/AgentNetworkPlanner->XMLGroup"
+            ],
+            "status": 2,
+            "token": 1048,
+            "cost": 0.002556,
+            "time": 2.9841649532318115,
+            "task": "\"https://agent.oss-cn-hangzhou.aliyuncs.com/%E5%AD%A6%E6%9C%AF%E8%AE%BA%E6%96%87.xml?x-oss-date=20250328T071412Z&x-oss-expires=604800&x-oss-signature-version=OSS4-HMAC-SHA256&x-oss-credential=LTAI5tHJppPTqutAGbWu5KDW%2F20250328%2Fcn-hangzhou%2Foss%2Faliyun_v4_request&x-oss-signature=e17aed9a06780fcff83f2df0ae2b4a091aa0c25e74ca8a9cd0f50634eece9572\"\n链接中提供了一个XML格式的学术论文，请你获取并解析该XML格式的学术论文，并解决以下问题：\nIn this academic paper, in a bar of chocolate that had the percentage makeup of the literature data's milk chocolate, what were the percentages of non-fiber carbohydrates measured along with the percentage o\nf protein and percentage of fat to find the non-fiber carbohydrate content if they had a 2:1 ratio in the order they appeared in the paper, given in that same order in the answer as X, Y (without % sign)?",
+            "type": "group"
+          }
+        },
+        "level_routes": {
+          "AgentNetworkPlannerGroup/AgentNetworkPlanner": {
+            "XMLGroup": {
+              "type": "python",
+              "task": "解析给定的XML格式的学术论文，提取关于牛奶巧克力成分的信息",
+              "params": [
+                {
+                  "title": "file_url",
+                  "name": "file_url",
+                  "description": "XML文件的OSS URL",
+                  "value": null,
+                  "type": "file"
+                },
+                {
+                  "title": "task",
+                  "name": "task",
+                  "description": "XML处理任务描述",
+                  "value": "在给定的XML格式的学术论文中，找到一种牛奶巧克力的成分比例。根据文献数据中的信息，如果非纤维碳水化合物、蛋白质和脂肪的比例为2:1，并按照这个顺序排列，请给出非纤维碳水化合物（X）、蛋白质（Y）的具体数值（不包含%符号）。",
+                  "type": "string"
+                }
+              ]
             }
+          }
         }
+      }
     ],
-    "answer_found_during_exploration": true,
-    "fallback_used": false
-}
+    "planning_result": {
+      "subtasks": [
+        {
+          "task": "解析给定的XML格式的学术论文，提取关于牛奶巧克力成分的信息",
+          "executor": "XMLGroup"
+        },
+        {
+          "task": "在提取的成分信息中，查找符合非纤维碳水化合物、蛋白质和脂肪比例为2:1的记录",
+          "executor": "ReasoningGroup"
+        },
+        {
+          "task": "计算并给出非纤维碳水化合物（X）、蛋白质（Y）的具体数值",
+          "executor": "CalculatorGroup"
+        }
+      ],
+      "step": 0
+    }
+  }

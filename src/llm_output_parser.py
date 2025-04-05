@@ -22,17 +22,49 @@ class LLMOutputParser:
             
             for line in lines:
                 line = line.strip()
-                if not line or not line[0].isdigit() or '. ' not in line:
+                if not line or not line[0].isdigit():  # 确保行以数字开头
                     continue
+                
+                # 尝试多种格式解析
                 try:
-                    # 提取关系部分
-                    relation_part = line.split('. ', 1)[1].split(' - ', 1)[0].strip('[]')
-                    # 不区分大小写匹配
-                    matching_relations = [r for r in available_relations if r.lower() == relation_part.lower()]
-                    if matching_relations:
-                        selected.append(matching_relations[0])
-                except IndexError:
+                    # 查找方括号中的内容
+                    if '[' in line and ']' in line:
+                        # 提取方括号中的关系部分
+                        start_idx = line.find('[')
+                        end_idx = line.find(']', start_idx)
+                        if start_idx != -1 and end_idx != -1:
+                            relation_part = line[start_idx+1:end_idx].strip()
+                            
+                            # 尝试精确匹配
+                            if relation_part in available_relations:
+                                selected.append(relation_part)
+                                continue
+                            
+                            # 尝试不区分大小写匹配
+                            matching_relations = [r for r in available_relations if r.lower() == relation_part.lower()]
+                            if matching_relations:
+                                selected.append(matching_relations[0])
+                            continue
+                
+                    # 回退到原始解析方法（如果方括号解析失败）
+                    if '. ' in line:
+                        # 提取关系部分
+                        parts = line.split('. ', 1)[1]
+                        
+                        # 检查是否有解释部分
+                        if ' - ' in parts:
+                            relation_part = parts.split(' - ', 1)[0].strip('[]')
+                        else:
+                            relation_part = parts.strip('[]')
+                            
+                        # 不区分大小写匹配
+                        matching_relations = [r for r in available_relations if r.lower() == relation_part.lower()]
+                        if matching_relations:
+                            selected.append(matching_relations[0])
+                except Exception as e:
+                    # 错误处理：记录错误并继续解析下一行
                     continue
+                
             return selected
 
         # 处理单个字符串输出

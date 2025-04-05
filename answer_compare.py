@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Tuple, Set
 
 # 定义目录路径
 dir1 = "/mnt/wangjingxiong/think_on_graph/results/GenPaths/RoG-webqsp/GCR-Llama3.1-8B-Instruct/test/zero-shot-group-beam-k10-index_len2"
-dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning/RoG-webqsp/GCR-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk5"
+dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v2/RoG-webqsp/GCR-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk5"
 
 def load_jsonl(file_path: str) -> List[Dict[str, Any]]:
     """加载JSONL文件内容"""

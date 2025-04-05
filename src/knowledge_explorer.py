@@ -27,7 +27,7 @@ class KnowledgeExplorer:
         kg: KnowledgeGraph, 
         model: Any, 
         max_rounds: int = 3, 
-        relation_k: int = 5, 
+        relation_k: int = 10, 
     ) -> None:
         """
         初始化知识图谱探索器。
@@ -124,7 +124,7 @@ class KnowledgeExplorer:
         prompt_args = {
             "question": question,
             "entity": entity,
-            "relations": "\n".join(f"- {rel}" for rel in out_related_relations),
+            "relations": "\n".join(f"[{rel}]" for rel in out_related_relations),
             "relation_k": min(self.relation_k, len(out_related_relations))
         }
         
@@ -139,10 +139,9 @@ class KnowledgeExplorer:
         prompt = template.format(**prompt_args)
         model_input = self.model.prepare_model_prompt(prompt)
         
-        # 使用greedy策略生成输出
         selection_output = self.model.generate_sentence(
             model_input,
-            temp_generation_mode="greedy"
+            temp_generation_mode="beam"
         )
         
         # 解析选择的关系
@@ -350,8 +349,8 @@ class KnowledgeExplorer:
         Returns:
             (探索历史, 是否找到答案)的元组
         """
-        if isinstance(start_entities, str):
-            start_entities = [start_entities]
+        # if isinstance(start_entities, str):
+        #     start_entities = [start_entities]
             
         logger.info(f"Starting exploration with entities: {start_entities}")
         
@@ -560,9 +559,9 @@ class KnowledgeExplorer:
         ground_truth = data.get("answer")
         question_id = data.get("id", "unknown")
         
-        if not question:
-            logger.error("No question found in data")
-            return None
+        # if not question:
+        #     logger.error("No question found in data")
+        #     return None
         
         # 跳过已处理的问题
         if question_id in processed_ids:
