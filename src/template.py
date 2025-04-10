@@ -42,15 +42,10 @@ class KnowledgeGraphTemplates:
     # Available relations from this entity (select only from these):
     {relations}
 
-    Select exactly {relation_k} relations that are most relevant to answering the question. Your response must follow this exact format, with no additional text outside the numbered list:
-    1. [relation_name] - [brief explanation of relevance]
-    2. [relation_name] - [brief explanation of relevance]
-    ...
-    {relation_k}. [relation_name] - [brief explanation of relevance]
-
-    - Only choose relations from the provided list.
-    - If fewer than {relation_k} relations are relevant, repeat the most relevant relation to fill the list.
-    - Do not include any introductory text, conclusions, or extra lines beyond the {relation_k} numbered items.
+    Select up to {max_k_relations} relation IDs that are most relevant to answering the question.
+    Your response should ONLY contain the relation IDs (e.g., REL_0, REL_1) from the list above.
+    Valid relation IDs: {relation_ids}
+    Your selection (IDs only):
     """
 
     RELATION_SELECTION_WITH_CONTEXT = """
@@ -68,16 +63,10 @@ class KnowledgeGraphTemplates:
     # Available relations from this entity (select only from these):
     {relations}
     
-    Select exactly {relation_k} relations that are most likely to lead to the answer. Your response must follow this exact format:
-    1. [relation_name] - [brief explanation of relevance]
-    2. [relation_name] - [brief explanation of relevance]
-    ...
-    {relation_k}. [relation_name] - [brief explanation of relevance]
-    
-    Consider:
-    - Which relations might connect to information needed to answer the question
-    - Avoid relations that would lead to already explored paths
-    - Prioritize relations that fill gaps in the current knowledge
+    Select up to {max_k_relations} relation IDs that are most relevant to answering the question.
+    Your response should ONLY contain the relation IDs (e.g., REL_0, REL_1) from the list above.
+    Valid relation IDs: {relation_ids}
+    Your selection (IDs only):
     """
     
     ENTITY_RANKING = """
@@ -122,11 +111,11 @@ class KnowledgeGraphTemplates:
     5. If multiple valid answers exist, list ALL without modification.
     
     Respond in this exact format:
-    [Decision: Yes/No]
-    [Reasoning path: if Yes, step-by-step entity-relation-entity chains]
-    [Preliminary Answer: ONLY entity names that directly answer the question, comma-separated]
-    [Verification: Analyze if answer follows directly from reasoning path without assumptions]
-    [Final Answer: After verification, ONLY entity names, comma-separated, or state cannot answer]
+    Decision: Yes/No
+    Reasoning path: if Yes, step-by-step entity-relation-entity chains
+    Preliminary Answer: ONLY entity names that directly answer the question, comma-separated
+    Verification: Yes/No - whether the answer follows directly from reasoning path without assumptions
+    Final Answer: After verification, ONLY entity names, comma-separated, or state cannot answer
     """
 
     # 零样本和引导提示模板
@@ -274,8 +263,8 @@ class KnowledgeGraphTemplates:
     If the exploration doesn't contain enough information to answer confidently, explain what's missing.
 
     Respond in this exact format:
-    [Answer: your answer based strictly on information in the exploration]
-    [Reasoning: step-by-step explanation of how you arrived at the answer]
+    Answer: your answer based strictly on information in the exploration
+    Reasoning: step-by-step explanation of how you arrived at the answer
     """
     
     # 备用答案模板
@@ -289,8 +278,8 @@ class KnowledgeGraphTemplates:
     Consider what information would be needed to answer it properly.
 
     Respond in this exact format:
-    [Answer: concise statement that the question cannot be answered with available information]
-    [Reasoning: explanation of what information would be needed to answer properly]
+    Answer: concise statement that the question cannot be answered with available information
+    Reasoning: explanation of what information would be needed to answer properly
     """
 
     def __init__(self):
@@ -306,14 +295,14 @@ class KnowledgeGraphTemplates:
                 name="relation_selection",
                 template=self.RELATION_SELECTION,
                 category=TemplateCategory.RELATION,
-                required_params=["question", "entity", "relations", "relation_k"],
+                required_params=["question", "entity", "relations", "max_k_relations"],
                 description="选择最相关的关系进行探索"
             ),
             PromptTemplate(
                 name="relation_selection_context",
                 template=self.RELATION_SELECTION_WITH_CONTEXT,
                 category=TemplateCategory.RELATION,
-                required_params=["question", "entity", "history", "relations", "relation_k"],
+                required_params=["question", "entity", "history", "relations", "max_k_relations"],
                 description="基于历史上下文选择最相关的关系"
             ),
             PromptTemplate(

@@ -1,106 +1,58 @@
 from typing import Any, Dict, List, Tuple, Union
+import re
 
 class LLMOutputParser:
     """解析语言模型输出。"""    
     
     @staticmethod
-    def parse_selected_relations(llm_output: Union[str, List[str]], 
-                                 available_relations: List[str]) -> List[str]:
-        """解析语言模型输出以提取选定的关系。
-
-        Args:
-            llm_output: 语言模型生成的输出，可以是单个字符串或字符串列表
-            available_relations: 可用关系列表
-
-        Returns:
-            按相关性排序的关系列表
-        """
+    def parse_relations(llm_output: Union[str, List[str]], available_relations: List[str]) -> List[str]:
         def parse_single_output(output: str) -> List[str]:
-            """解析单个输出字符串。"""
             selected = []
             lines = output.strip().split('\n')
-            
             for line in lines:
                 line = line.strip()
-                if not line or not line[0].isdigit():  # 确保行以数字开头
+                if not line or not line[0].isdigit():
                     continue
-                
-                # 尝试多种格式解析
                 try:
-                    # 查找方括号中的内容
                     if '[' in line and ']' in line:
-                        # 提取方括号中的关系部分
                         start_idx = line.find('[')
                         end_idx = line.find(']', start_idx)
                         if start_idx != -1 and end_idx != -1:
                             relation_part = line[start_idx+1:end_idx].strip()
-                            
-                            # 尝试精确匹配
                             if relation_part in available_relations:
                                 selected.append(relation_part)
                                 continue
-                            
-                            # 尝试不区分大小写匹配
                             matching_relations = [r for r in available_relations if r.lower() == relation_part.lower()]
                             if matching_relations:
                                 selected.append(matching_relations[0])
                             continue
-                
-                    # 回退到原始解析方法（如果方括号解析失败）
                     if '. ' in line:
-                        # 提取关系部分
                         parts = line.split('. ', 1)[1]
-                        
-                        # 检查是否有解释部分
                         if ' - ' in parts:
                             relation_part = parts.split(' - ', 1)[0].strip('[]')
                         else:
                             relation_part = parts.strip('[]')
-                            
-                        # 不区分大小写匹配
                         matching_relations = [r for r in available_relations if r.lower() == relation_part.lower()]
                         if matching_relations:
                             selected.append(matching_relations[0])
                 except Exception as e:
-                    # 错误处理：记录错误并继续解析下一行
                     continue
-                
             return selected
-
-        # 处理单个字符串输出
+        
         if isinstance(llm_output, str):
             return parse_single_output(llm_output)
-        
-        # 处理多个输出并统计频率
         relation_scores = {}
         total_outputs = len(llm_output)
-        
         for output in llm_output:
             selected = parse_single_output(output)
             for relation in selected:
                 relation_scores[relation] = relation_scores.get(relation, 0) + 1
-
-        # 计算每个关系的得分（频率）并排序
-        scored_relations = [
-            (relation, count / total_outputs)
-            for relation, count in relation_scores.items()
-        ]
+        scored_relations = [(relation, count / total_outputs) for relation, count in relation_scores.items()]
         scored_relations.sort(key=lambda x: x[1], reverse=True)
-        
-        # 返回排序后的关系列表
         return [relation for relation, _ in scored_relations]
 
     @staticmethod
-    def parse_entity_scores(output: str, frontier: List[str]) -> List[Tuple[str, float]]:
-        """解析实体评分输出。
-
-        Args:
-            output: 语言模型生成的输出
-            frontier: 待评分的实体列表
-
-        Returns:
-            按评分降序排序的实体和分数对列表
-        """
+    def parse_entities(output: str, frontier: List[str]) -> List[Tuple[str, float]]:
         entity_scores = []
         for line in output.strip().split('\n'):
             if ':' in line and '-' in line:
@@ -109,113 +61,61 @@ class LLMOutputParser:
                     score_part = line.split(':', 1)[1].split('-', 1)[0].strip()
                     score = float(score_part)
                     entity = entity_part
-                    
-                    # 确保实体在前沿列表中（不区分大小写匹配）
                     matching_entities = [e for e in frontier if e.lower() == entity.lower()]
                     if matching_entities:
                         entity_scores.append((matching_entities[0], score))
                 except (ValueError, IndexError):
-                    continue
-        
-        # 按评分降序排序
+                    continue        
         entity_scores.sort(key=lambda x: x[1], reverse=True)
         return entity_scores
 
     @staticmethod
     def parse_reasoning_output(output: str) -> Dict[str, Any]:
-        """解析推理输出。
-
-        Args:
-            output: 语言模型生成的推理输出，格式为：
-            [Decision: Yes/No]
-            [Reasoning path: ...]
-            [Preliminary Answer: ...]
-            [Verification: ...]
-            [Final Answer: ...]
-            [Missing information: ...]
-
-        Returns:
-            包含答案和推理路径的字典
-        """
-        lines = output.strip().split('\n')
+        sections = output.split('\n\n')
         decision = ""
+        reasoning_path = ""
         preliminary_answer = ""
         verification = ""
         final_answer = ""
-        missing_info = ""
-        reasoning_path = []
         
-        # 初始化状态
-        in_reasoning_path = False
+        for section in sections:
+            section = section.strip()
+            if section.startswith('Decision:'):
+                decision = section.replace('Decision:', '').strip()
+            elif section.startswith('Reasoning path:'):
+                # 处理多行推理路径，去掉序号
+                path_lines = section.replace('Reasoning path:', '').strip().split('\n')
+                for line in path_lines:
+                    if '--[' in line and ']-->' in line:
+                        # 如果有序号，去掉序号
+                        if line.strip().startswith(('1.', '2.', '3.', '4.', '5.')):
+                            reasoning_path = line.split('.', 1)[1].strip()
+                        else:
+                            reasoning_path = line.strip()
+                        break
+            elif section.startswith('Preliminary Answer:'):
+                preliminary_answer = section.replace('Preliminary Answer:', '').strip()
+            elif section.startswith('Verification:'):
+                verification = section.replace('Verification:', '').strip()
+            elif section.startswith('Final Answer:'):
+                final_answer = section.replace('Final Answer:', '').strip()
         
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            
-            # 移除方括号
-            clean_line = line.strip('[]')
-            
-            if line.startswith('[Decision:'):
-                decision = clean_line.split('Decision:', 1)[1].strip()
-            elif line.startswith('[Preliminary Answer:'):
-                preliminary_answer = clean_line.split('Preliminary Answer:', 1)[1].strip()
-            elif line.startswith('[Verification:'):
-                verification = clean_line.split('Verification:', 1)[1].strip()
-            elif line.startswith('[Final Answer:'):
-                final_answer = clean_line.split('Final Answer:', 1)[1].strip()
-            elif line.startswith('[Missing information:'):
-                missing_info = clean_line.split('Missing information:', 1)[1].strip()
-            elif line.startswith('[Reasoning path:'):
-                in_reasoning_path = True
-                continue
-            elif line == ']' and in_reasoning_path:
-                in_reasoning_path = False
-            elif in_reasoning_path:
-                reasoning_path.append(clean_line)
-        
-        # 使用最终答案，如果有的话
         answer = final_answer or preliminary_answer
         
-        # 检查答案格式是否符合要求（不含句子结构）
-        has_sentence_structure = any(indicator in answer.lower() for indicator in [
-            " was ", " is ", " were ", " are ", " has ", " had ", " will ", " would ", 
-            " could ", " can ", " may ", " might ", ". ", " because ", " since ", 
-            " therefore ", " thus ", " hence ", " as a result"
-        ])
-        
-        # 根据是否有答案决定返回结构
         if decision.lower() == 'yes' and answer:
-            # 提取验证结果中的置信度指示
-            is_verified = not any(phrase in verification.lower() for phrase in [
-                "cannot answer with confidence", 
-                "not supported by evidence",
-                "insufficient evidence",
-                "making assumptions",
-                "contradictions",
-                "inferences",
-                "combination",
-                "ambiguous",
-                "not directly stated"
-            ])
-            
-            # 如果答案包含句子结构，标记为未验证
-            if has_sentence_structure:
-                is_verified = False
+            is_verified = verification.lower().startswith("yes") or "directly follows" in verification.lower()
             
             return {
                 "can_answer": True,
                 "answer": answer,
-                "reasoning_path": '\n'.join(reasoning_path),
+                "reasoning_path": reasoning_path,
                 "preliminary_answer": preliminary_answer,
                 "verification": verification,
-                "is_verified": is_verified,
-                "has_sentence_structure": has_sentence_structure
+                "is_verified": is_verified
             }
         else:
             return {
-                "can_answer": False,
-                "missing_info": missing_info
+                "can_answer": False
             }
 
     @staticmethod

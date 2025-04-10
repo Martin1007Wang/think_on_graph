@@ -94,7 +94,7 @@ def main(args, LLM):
     # Load dataset
     dataset = load_dataset(input_file, split=args.split)
     post_fix = f"{args.prefix}{args.prompt_mode}-{args.generation_mode}-k{args.k}-index_len{args.index_path_length}"
-    if args.add_rule:
+    if args.add_rule: #False
         rule_postfix = args.rule_path.replace("/", "_").replace(".", "_")
         rule_dataset = utils.load_jsonl(args.rule_path)
         dataset = merge_rule_result(dataset, rule_dataset, args.n, args.filter_empty)
@@ -158,7 +158,7 @@ if __name__ == "__main__":
     argparser.add_argument('--d', '-d', type=str, default='RoG-webqsp')
     argparser.add_argument('--split', type=str, default='test[:100]')
     argparser.add_argument('--index_path_length', type=int, default=2)
-    argparser.add_argument('--predict_path', type=str, default='results/GCR_original')
+    argparser.add_argument('--predict_path', type=str, default='results/GCR_original_test')
     argparser.add_argument('--model_name', type=str, help="model_name for save results", default='gcr-Llama-2-7b-chat-hf')
     argparser.add_argument('--force', action='store_true', help="force to overwrite the results")
     argparser.add_argument("--n", type=int, default=1, help="number of processes")

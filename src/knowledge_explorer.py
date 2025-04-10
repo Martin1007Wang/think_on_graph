@@ -6,6 +6,8 @@ import re
 import os
 import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union, Set
+import concurrent.futures
+from collections import OrderedDict
 
 from src.knowledge_graph import KnowledgeGraph
 from src.llm_output_parser import LLMOutputParser
@@ -22,214 +24,87 @@ logger.addHandler(console_handler)
 class KnowledgeExplorer:
     """知识图谱探索器，用于基于知识图谱回答问题。"""
     
-    def __init__(
-        self, 
-        kg: KnowledgeGraph, 
-        model: Any, 
-        max_rounds: int = 3, 
-        relation_k: int = 10, 
-    ) -> None:
-        """
-        初始化知识图谱探索器。
-        
-        Args:
-            kg: 知识图谱对象
-            model: 语言模型对象
-            max_rounds: 最大探索轮次
-            relation_k: 每个实体选择的关系数量
-        """
+    def __init__(self, kg: KnowledgeGraph, model: Any, max_rounds: int = 3, max_k_relations: int = 10) -> None:
         self.kg = kg
         self.model = model
         self.max_rounds = max_rounds
-        self.relation_k = relation_k
+        self.max_k_relations = max_k_relations
         self.parser = LLMOutputParser()
         self.templates = KnowledgeGraphTemplates()
     
     def format_exploration_round(self, round_data: Dict[str, Any]) -> str:
-        """
-        格式化单轮探索结果为可读文本。
-        
-        Args:
-            round_data: 包含单轮探索信息的字典
-            
-        Returns:
-            格式化的探索结果文本
-        """
         result = []
         round_num = round_data["round"]
         result.append(f"Round {round_num}:")
-        
         for expansion in round_data["expansions"]:
             entity = expansion["entity"]
             result.append(f"  Entity: {entity}")
-            
             for relation_info in expansion["relations"]:
                 relation = relation_info["relation"]
                 targets = relation_info["targets"]
                 if targets:
                     result.append(f"    {entity} --[{relation}]--> {', '.join(targets)}")
-        
         result.append("")
         return "\n".join(result)
     
     def format_exploration_history(self, exploration_history: List[Dict[str, Any]]) -> str:
-        """
-        格式化完整探索历史为可读文本。
-        
-        Args:
-            exploration_history: 探索历史列表
-            
-        Returns:
-            格式化的完整探索历史文本
-        """
         result = []
         for round_data in exploration_history:
             result.append(self.format_exploration_round(round_data))
         return "\n".join(result).rstrip()
     
-    def _get_related_relations(
-        self, 
-        entity: str, 
-        question: str, 
-        context: str = "", 
-        history: str = ""
-    ) -> List[str]:
-        """
-        获取与实体相关的关系。
-        
-        Args:
-            entity: 实体ID
-            question: 问题文本
-            context: 上下文信息
-            history: 探索历史
-            
-        Returns:
-            相关关系列表
-        """
-        # 获取与实体相关的出向关系
+    def _get_related_relations(self, entity: str, question: str, context: str = "", history: str = "") -> List[str]:
         out_related_relations = self.kg.get_related_relations(entity, "out")
-        
         if not out_related_relations:
             logger.error(f"No relations found for entity '{entity}'")
             return []
-        
-        # 根据是否有上下文选择不同的模板
+        relation_dict = {f"REL_{i}": rel for i, rel in enumerate(out_related_relations)}
+        relation_options = "\n".join(f"[{rel_id}] {rel}" for rel_id, rel in relation_dict.items())
         template = (
             self.templates.RELATION_SELECTION_WITH_CONTEXT 
             if context and history 
             else self.templates.RELATION_SELECTION
         )
-        
-        # 准备prompt参数
         prompt_args = {
             "question": question,
             "entity": entity,
-            "relations": "\n".join(f"[{rel}]" for rel in out_related_relations),
-            "relation_k": min(self.relation_k, len(out_related_relations))
+            "relations": relation_options,
+            "relation_ids": ", ".join(relation_dict.keys()),
+            "max_k_relations": min(self.max_k_relations, len(out_related_relations))
         }
-        
-        # 添加上下文信息（如果有）
         if context and history:
-            prompt_args.update({
-                "history": history,
-                "context": context
-            })
-        
-        # 生成prompt并准备模型输入
+            prompt_args.update({"history": history, "context": context})
         prompt = template.format(**prompt_args)
         model_input = self.model.prepare_model_prompt(prompt)
-        
-        selection_output = self.model.generate_sentence(
-            model_input,
-            temp_generation_mode="beam"
-        )
-        
-        # 解析选择的关系
-        selected_relations = self.parser.parse_selected_relations(
-            selection_output, 
-            out_related_relations
-        )
-        
-        return selected_relations[:self.relation_k]
+        selection_output = self.model.generate_sentence(model_input,temp_generation_mode="beam")
+        rel_ids = re.findall(r'REL_\d+', selection_output)
+        selected_relations = list(OrderedDict.fromkeys(relation_dict[rel_id] for rel_id in rel_ids))
+        return selected_relations
     
-    def _expand_entity(
-        self, 
-        entity: str, 
-        question: str, 
-        context: str, 
-        history: str
-    ) -> Dict[str, Any]:
-        """
-        展开单个实体，探索其相关关系和目标实体。
-        
-        Args:
-            entity: 要展开的实体
-            question: 问题文本
-            context: 实体上下文
-            history: 探索历史
-            
-        Returns:
-            包含实体展开信息的字典
-        """
-        # 获取相关关系
-        selected_relations = self._get_related_relations(
-            entity, question, context, history
-        )
-        
-        if not selected_relations:
-            return None
-        
+    def _expand_entity(self, entity: str, question: str, context: str, history: str) -> Dict[str, Any]:
+        selected_relations = self._get_related_relations(entity, question, context, history)
         entity_expansion = {"entity": entity, "relations": []}
         
-        # 探索每个关系
-        for relation in selected_relations:
+        for rel in selected_relations:
             try:
-                # 获取关系目标实体（限制为前5个）
-                outgoing = self.kg.get_target_entities(entity, relation, "out")[:5]
-                
-                if outgoing:
-                    # 记录关系信息
-                    relation_info = {
-                        "relation": relation,
-                        "targets": outgoing
-                    }
+                targets = self.kg.get_target_entities(entity, rel, "out")
+                if targets:
+                    relation_info = {"relation": rel, "targets": targets}
                     entity_expansion["relations"].append(relation_info)
             except Exception as e:
-                logger.error(f"Error querying knowledge graph: {str(e)}")
-                continue
+                logger.error(f"Error retrieving targets for '{entity}' with relation '{rel}': {str(e)}")
         
         return entity_expansion if entity_expansion["relations"] else None
     
-    def check_if_can_answer(
-        self, 
-        question: str, 
-        start_entities: List[str], 
-        exploration_history: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """
-        检查是否能够基于当前探索回答问题。
-        
-        Args:
-            question: 问题文本
-            start_entities: 起始实体列表
-            exploration_history: 探索历史
-            
-        Returns:
-            包含答案信息的字典
-        """
+    def check_if_can_answer(self, question: str, start_entities: List[str], exploration_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+        updated_history = self.format_exploration_history(exploration_history)
         try:
-            # 格式化探索历史
-            formatted_history = self.format_exploration_history(exploration_history)
-            
-            # 生成推理提示
             prompt = self.templates.REASONING.format(
                 question=question,
                 entity=", ".join(start_entities),
                 num_rounds=len(exploration_history),
-                exploration_history=formatted_history
+                exploration_history=updated_history
             )
-            
-            # 生成推理输出
             model_input = self.model.prepare_model_prompt(prompt)
             reasoning_output = self.model.generate_sentence(
                 model_input,
@@ -237,18 +112,15 @@ class KnowledgeExplorer:
                 num_beams=4
             )
             
-            # 解析推理结果
             result = self.parser.parse_reasoning_output(reasoning_output)
             
-            # 检查是否需要处理m编码
             if self._process_m_codes_if_needed(result, exploration_history):
-                # 如果处理了m编码，重新生成答案
-                formatted_history = self.format_exploration_history(exploration_history)
+                updated_history = self.format_exploration_history(exploration_history)
                 prompt = self.templates.REASONING.format(
                     question=question,
                     entity=", ".join(start_entities),
                     num_rounds=len(exploration_history),
-                    exploration_history=formatted_history
+                    exploration_history=updated_history
                 )
                 
                 model_input = self.model.prepare_model_prompt(prompt)
@@ -334,149 +206,55 @@ class KnowledgeExplorer:
             
         return False
     
-    def explore_knowledge_graph(
-        self, 
-        question: str, 
-        start_entities: Union[str, List[str]]
-    ) -> Tuple[List[Dict[str, Any]], bool]:
-        """
-        探索知识图谱以回答问题。
-        
-        Args:
-            question: 问题文本
-            start_entities: 起始实体或实体列表
-            
-        Returns:
-            (探索历史, 是否找到答案)的元组
-        """
-        # if isinstance(start_entities, str):
-        #     start_entities = [start_entities]
-            
-        logger.info(f"Starting exploration with entities: {start_entities}")
-        
+    def explore_knowledge_graph(self, question: str, start_entities: Union[str, List[str]]) -> Tuple[List[Dict[str, Any]], bool]:
         exploration_history: List[Dict[str, Any]] = []
         entities_explored: Set[str] = set(start_entities)
         entities_in_context: Set[str] = set(start_entities)
         frontier: List[str] = list(start_entities)
         answer_found = False
-        answer_info = {}
-        consecutive_unverified = 0  # 连续未验证通过的次数
-        max_consecutive_unverified = 2  # 最大允许连续未验证通过的次数
         
-        # 主探索循环
         for round_num in range(self.max_rounds):
-            logger.info(f"Round {round_num+1}: Exploring {len(frontier)} frontier entities")
-            
-            # 准备本轮探索数据结构
             round_exploration = {"round": round_num + 1, "expansions": []}
             new_frontier = []
-            
-            # 生成探索历史和上下文字符串
-            exploration_history_str = self.format_exploration_history(exploration_history)
-            entities_context_str = ", ".join(entities_in_context)
-            
-            # 探索所有frontier实体
+            entities_context = ", ".join(entities_in_context)
+            entity_expansions = {}
             for entity in frontier:
-                # 展开单个实体
-                entity_expansion = self._expand_entity(
-                    entity, 
-                    question, 
-                    entities_context_str, 
-                    exploration_history_str
-                )
-                
-                if not entity_expansion:
-                    continue
-                    
-                round_exploration["expansions"].append(entity_expansion)
-                
-                # 更新上下文和边界
-                for relation_info in entity_expansion["relations"]:
+                try:
+                    expansion = self._expand_entity(entity, question, entities_context, self.format_exploration_history(exploration_history))
+                    if expansion:
+                        entity_expansions[entity] = expansion
+                except Exception as e:
+                    logger.error(f"Error expanding entity {entity}: {str(e)}")
+                    entity_expansions[entity] = None
+            for entity, expansion in entity_expansions.items():
+                round_exploration["expansions"].append(expansion)
+                for relation_info in expansion["relations"]:
                     for target in relation_info["targets"]:
-                        if target:
-                            entities_in_context.add(target)
-                            if target not in entities_explored:
-                                new_frontier.append(target)
-                                entities_explored.add(target)
+                        entities_in_context.add(target)
+                        if target not in entities_explored:
+                            new_frontier.append(target)
+                            entities_explored.add(target)
             
-            # 如果本轮没有新发现，结束探索
-            if not round_exploration["expansions"]:
-                logger.info("No new information found in this round")
-                break
-                
-            # 添加本轮结果到历史
             exploration_history.append(round_exploration)
-            
-            # 检查是否能回答问题
             can_answer = self.check_if_can_answer(question, start_entities, exploration_history)
             
+            # 如果能回答问题，结束探索
             if can_answer.get("can_answer", False):
-                # 检查答案格式和验证状态
-                is_verified = can_answer.get("is_verified", False)
-                has_sentence_structure = can_answer.get("has_sentence_structure", False)
+                logger.info(f"Found answer after round {round_num+1}, ending exploration")
+                answer_found = True
                 
-                # 如果答案包含句子结构，记录但继续探索
-                if has_sentence_structure:
-                    logger.warning(
-                        f"Answer contains sentence structure: '{can_answer.get('answer', '')}'. "
-                        "Continuing exploration to find direct entity answers."
-                    )
-                    consecutive_unverified += 1
-                    
-                    # 如果已经到达最大轮次或连续未验证次数过多，使用一个格式化的答案
-                    if round_num + 1 >= self.max_rounds or consecutive_unverified >= max_consecutive_unverified:
-                        # 尝试从答案中提取实体
-                        entities = self._extract_entities_from_sentence(can_answer.get("answer", ""))
-                        if entities:
-                            logger.info(f"Extracted entities from sentence: {entities}")
-                            final_answer = ", ".join(entities)
-                            answer_found = True
-                            answer_info = {
-                                "answer": final_answer,
-                                "reasoning_path": can_answer.get("reasoning_path", ""),
-                                "verification": "Extracted direct entities from sentence structure",
-                                "is_verified": False,
-                                "original_answer": can_answer.get("answer", "")
-                            }
-                            exploration_history[-1]["answer_found"] = answer_info
-                            break
-                elif is_verified:
-                    logger.info(f"Found verified answer after round {round_num+1}, ending exploration")
-                    answer_found = True
-                    answer_info = {
-                        "answer": can_answer.get("answer", ""),
-                        "reasoning_path": can_answer.get("reasoning_path", ""),
-                        "verification": can_answer.get("verification", ""),
-                        "is_verified": True
-                    }
-                    exploration_history[-1]["answer_found"] = answer_info
-                    break
-                else:
-                    # 答案未通过验证
-                    logger.info(f"Found unverified answer after round {round_num+1}, continuing exploration")
-                    consecutive_unverified += 1
-                    
-                    # 如果连续多次未通过验证，使用最后一次的答案
-                    if consecutive_unverified >= max_consecutive_unverified:
-                        logger.info(f"Reached max consecutive unverified answers ({max_consecutive_unverified}), using last answer")
-                        answer_found = True
-                        answer_info = {
-                            "answer": can_answer.get("answer", ""),
-                            "reasoning_path": can_answer.get("reasoning_path", ""),
-                            "verification": can_answer.get("verification", ""),
-                            "is_verified": False
-                        }
-                        exploration_history[-1]["answer_found"] = answer_info
-                        break
-            else:
-                # 重置连续未验证计数
-                consecutive_unverified = 0
+                # 记录答案信息
+                answer_info = {
+                    "answer": can_answer.get("answer", ""),
+                    "reasoning_path": can_answer.get("reasoning_path", ""),
+                    "verification": can_answer.get("verification", ""),
+                    "is_verified": can_answer.get("is_verified", True)  # 假设输出可信
+                }
+                exploration_history[-1]["answer_found"] = answer_info
+                break
             
             # 更新下一轮的frontier
             frontier = new_frontier
-            if not frontier:
-                logger.info("No new entities to explore, ending exploration")
-                break
         
         return exploration_history, answer_found
     
@@ -544,58 +322,15 @@ class KnowledgeExplorer:
         data: Dict[str, Any], 
         processed_ids: List[str]
     ) -> Optional[Dict[str, Any]]:
-        """
-        处理单个问题并生成答案。
-        
-        Args:
-            data: 包含问题信息的字典
-            processed_ids: 已处理的问题ID列表
-            
-        Returns:
-            包含处理结果的字典，如果问题已处理则返回None
-        """
-        # 提取问题、真实答案和ID
         question = data.get("question")
         ground_truth = data.get("answer")
         question_id = data.get("id", "unknown")
-        
-        # if not question:
-        #     logger.error("No question found in data")
-        #     return None
-        
-        # 跳过已处理的问题
         if question_id in processed_ids:
             logger.info(f"Question {question_id} already processed, skipping")
             return None
-        
-        # 获取起始实体
         start_entities = data.get("q_entity", data.get("entity", []))
-        
-        # 如果没有起始实体，使用备用答案
-        if not start_entities:
-            logger.error(f"No query entities found for question ID {question_id}")
-            fallback = self.get_fallback_answer(question)
-            return {
-                "id": question_id,
-                "question": question,
-                "ground_truth": ground_truth,
-                "start_entities": [],
-                "prediction": fallback["answer"],
-                "reasoning": fallback["reasoning"],
-                "exploration_history": [],
-                "answer_found_during_exploration": False,
-                "fallback_used": True
-            }
-        
-        logger.info(f"Processing question {question_id}: {question}")
-        
         try:
-            # 探索知识图谱
-            exploration_history, answer_found = self.explore_knowledge_graph(
-                question, start_entities
-            )
-            
-            # 如果没有探索历史，使用备用答案
+            exploration_history, answer_found = self.explore_knowledge_graph(question, start_entities)
             if not exploration_history:
                 logger.warning(f"No exploration history for question ID {question_id}")
                 fallback = self.get_fallback_answer(question)
@@ -613,20 +348,6 @@ class KnowledgeExplorer:
                     answer_info = final_round.get("answer_found", {})
                     answer_text = answer_info.get("answer", "")
                     
-                    # 检查是否需要进一步清理答案
-                    has_sentence_structure = any(indicator in answer_text.lower() for indicator in [
-                        " was ", " is ", " were ", " are ", " has ", " had ", " will ", " would ", 
-                        " could ", " can ", " may ", " might ", ". ", " because ", " since ", 
-                        " therefore ", " thus ", " hence ", " as a result"
-                    ])
-                    
-                    if has_sentence_structure and "original_answer" not in answer_info:
-                        # 尝试从句子中提取实体
-                        entities = self._extract_entities_from_sentence(answer_text)
-                        if entities:
-                            logger.info(f"Additional cleaning of answer with sentence structure: {entities}")
-                            answer_text = ", ".join(entities)
-                    
                     final_answer = {
                         "answer": answer_text,
                         "reasoning": answer_info.get("reasoning_path", ""),
@@ -634,9 +355,7 @@ class KnowledgeExplorer:
                         "is_verified": answer_info.get("is_verified", False)
                     }
                     
-                    # 如果有原始未清理的答案，保存它
-                    if "original_answer" in answer_info:
-                        final_answer["original_answer"] = answer_info["original_answer"]
+                   
                 else:
                     # 有探索历史但未找到明确答案，使用check_if_can_answer重新尝试
                     logger.info("No explicit answer found during exploration, attempting one more reasoning attempt")

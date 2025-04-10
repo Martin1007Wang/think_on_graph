@@ -147,7 +147,7 @@ def main(args: argparse.Namespace) -> None:
         dataset = load_dataset(input_file, split=args.split)
         
         # 设置输出目录
-        post_fix = f"{args.prefix}iterative-rounds{args.max_rounds}-topk{args.top_k_relations}"
+        post_fix = f"{args.prefix}iterative-rounds{args.max_rounds}-topk{args.max_k_relations}"
         data_name = args.data_name + "_undirected" if args.undirected else args.data_name
         output_dir = os.path.join(args.predict_path, data_name, args.model_name, args.split, post_fix)
         
@@ -172,38 +172,38 @@ def main(args: argparse.Namespace) -> None:
             kg=kg, 
             model=model, 
             max_rounds=args.max_rounds, 
-            relation_k=args.top_k_relations,
+            max_k_relations=args.max_k_relations,
         )
         
-        # for data in tqdm(dataset):
-        #     res = explorer.process_question(data, processed_list)
-        #     if res is not None:
-        #         if args.debug:
-        #             print(json.dumps(res))
-        #         fout.write(json.dumps(res) + "\n")
-        #         fout.flush()
-        #     else:
-        #         logger.warning(f"None result for: {data.get('id', 'unknown')}")
+        for data in tqdm(dataset):
+            res = explorer.process_question(data, processed_list)
+            if res is not None:
+                if args.debug:
+                    print(json.dumps(res))
+                fout.write(json.dumps(res) + "\n")
+                fout.flush()
+            else:
+                logger.warning(f"None result for: {data.get('id', 'unknown')}")
         
-        target_id = "WebQTest-1531"
-        found = False
+        # target_id = "WebQTest-79"
+        # found = False
 
-        for data in dataset:
-            if data.get("id") == target_id:
-                found = True
-                logger.info(f"Processing only the target item (id: {target_id})")
-                res = explorer.process_question(data, processed_list)
-                if res is not None:
-                    if args.debug:
-                        print(json.dumps(res))
-                    fout.write(json.dumps(res) + "\n")
-                    fout.flush()
-                else:
-                    logger.warning(f"None result for target id: {target_id}")
-                break
+        # for data in dataset:
+        #     if data.get("id") == target_id:
+        #         found = True
+        #         logger.info(f"Processing only the target item (id: {target_id})")
+        #         res = explorer.process_question(data, processed_list)
+        #         if res is not None:
+        #             if args.debug:
+        #                 print(json.dumps(res))
+        #             fout.write(json.dumps(res) + "\n")
+        #             fout.flush()
+        #         else:
+        #             logger.warning(f"None result for target id: {target_id}")
+        #         break
 
-        if not found:
-            logger.warning(f"Target item with id '{target_id}' not found in dataset")
+        # if not found:
+        #     logger.warning(f"Target item with id '{target_id}' not found in dataset")
         
         # 关闭输出文件
         fout.close()
@@ -226,7 +226,7 @@ if __name__ == "__main__":
     parser.add_argument('--split', type=str, default='test[:100]', help="Dataset split to use")
     
     # 输出参数
-    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning_v3', help="Path to save prediction results")
+    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning_v4', help="Path to save prediction results")
     parser.add_argument('--force', action='store_true', help="Force overwrite existing results")
     parser.add_argument('--debug', action='store_true', help="Print debug information")
     parser.add_argument('--prefix', type=str, default="", help="Prefix for result directory")
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     
     # 推理参数
     parser.add_argument('--max_rounds', type=int, default=3, help="Maximum number of exploration rounds")
-    parser.add_argument('--top_k_relations', type=int, default=5, help="Number of relations to select per entity")
+    parser.add_argument('--max_k_relations', type=int, default=5, help="Number of relations to select per entity")
     parser.add_argument('--n', type=int, default=10, help="Number of parallel processes")
     
     # 知识图谱参数
