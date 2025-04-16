@@ -175,35 +175,35 @@ def main(args: argparse.Namespace) -> None:
             max_k_relations=args.max_k_relations,
         )
         
-        for data in tqdm(dataset):
-            res = explorer.process_question(data, processed_list)
-            if res is not None:
-                if args.debug:
-                    print(json.dumps(res))
-                fout.write(json.dumps(res) + "\n")
-                fout.flush()
-            else:
-                logger.warning(f"None result for: {data.get('id', 'unknown')}")
+        # for data in tqdm(dataset):
+        #     res = explorer.process_question(data, processed_list)
+        #     if res is not None:
+        #         if args.debug:
+        #             print(json.dumps(res))
+        #         fout.write(json.dumps(res) + "\n")
+        #         fout.flush()
+        #     else:
+        #         logger.warning(f"None result for: {data.get('id', 'unknown')}")
         
-        # target_id = "WebQTest-79"
-        # found = False
+        target_id = "WebQTest-164"
+        found = False
 
-        # for data in dataset:
-        #     if data.get("id") == target_id:
-        #         found = True
-        #         logger.info(f"Processing only the target item (id: {target_id})")
-        #         res = explorer.process_question(data, processed_list)
-        #         if res is not None:
-        #             if args.debug:
-        #                 print(json.dumps(res))
-        #             fout.write(json.dumps(res) + "\n")
-        #             fout.flush()
-        #         else:
-        #             logger.warning(f"None result for target id: {target_id}")
-        #         break
+        for data in dataset:
+            if data.get("id") == target_id:
+                found = True
+                logger.info(f"Processing only the target item (id: {target_id})")
+                res = explorer.process_question(data, processed_list)
+                if res is not None:
+                    if args.debug:
+                        print(json.dumps(res))
+                    fout.write(json.dumps(res) + "\n")
+                    fout.flush()
+                else:
+                    logger.warning(f"None result for target id: {target_id}")
+                break
 
-        # if not found:
-        #     logger.warning(f"Target item with id '{target_id}' not found in dataset")
+        if not found:
+            logger.warning(f"Target item with id '{target_id}' not found in dataset")
         
         # 关闭输出文件
         fout.close()
@@ -226,7 +226,7 @@ if __name__ == "__main__":
     parser.add_argument('--split', type=str, default='test[:100]', help="Dataset split to use")
     
     # 输出参数
-    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning_v4', help="Path to save prediction results")
+    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning_v5', help="Path to save prediction results")
     parser.add_argument('--force', action='store_true', help="Force overwrite existing results")
     parser.add_argument('--debug', action='store_true', help="Print debug information")
     parser.add_argument('--prefix', type=str, default="", help="Prefix for result directory")
