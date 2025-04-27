@@ -38,25 +38,28 @@ class OptimizedKnowledgeGraph:
 
 def process_entity_pair(q_entity: str, a_entity: str, question: str, path_generator, max_negatives_per_pair: int) -> Dict[str, Any]:
     if not q_entity or not a_entity:
-        return {"shortest_path": "", "semantic_path": "", "negative_paths": []}
-
-    shortest_path = path_generator.get_shortest_path(q_entity, a_entity)
-    semantic_path, _ = path_generator.get_semantic_path(q_entity, a_entity, question)
-
+        return {"shortest_path": [], "semantic_path": [], "negative_paths": [], "positive_paths": []}
+    shortest_paths = path_generator.get_shortest_paths(q_entity, a_entity) or []
+    semantic_paths, _ = path_generator.get_semantic_path(q_entity, a_entity, question)
+    semantic_paths = semantic_paths or []
+    def path_to_tuple(path):
+        return tuple(path) if path else tuple()
+    all_positive = {path_to_tuple(p) for p in shortest_paths if p}
+    all_positive.update({path_to_tuple(p) for p in semantic_paths if p})
     negative_paths = []
-    if semantic_path:
-        negative_paths = path_generator.get_negative_paths(
-            semantic_path, question, a_entity, max_negatives_per_pair
-        )[:max_negatives_per_pair]
-
+    for p in all_positive:
+        if not p:
+            continue
+        negs = path_generator.get_negative_paths(p, question, a_entity, max_negatives_per_pair)
+        if negs:
+            negative_paths.extend(negs[:max_negatives_per_pair])
     return {
-        "shortest_path": format_path_for_json(shortest_path),
-        "semantic_path": format_path_for_json(semantic_path),
-        "negative_paths": [format_path_for_json(np) for np in negative_paths],
-        "positive_paths": [
-            format_path_for_json(p) for p in [shortest_path, semantic_path] if p
-        ]
+        "shortest_paths": [format_path_for_json(p) for p in shortest_paths if p],
+        "semantic_paths": [format_path_for_json(p) for p in semantic_paths if p],
+        "negative_paths": [format_path_for_json(np) for np in negative_paths if np],
+        "positive_paths": [format_path_for_json(list(p)) for p in all_positive if p]
     }
+
 
 def process_sample(sample: Dict, config: ProcessingConfig, path_generator) -> List[Dict]:
     q_entities = sample['q_entity'] if isinstance(sample['q_entity'], list) else [sample['q_entity']]
@@ -68,15 +71,10 @@ def process_sample(sample: Dict, config: ProcessingConfig, path_generator) -> Li
     for q_entity in q_entities:
         pairs = [(q_entity, a) for a in a_entities if a][:config.max_pairs]
         for q_entity, a_entity in pairs:
-            pair_result = process_entity_pair(
-                q_entity, a_entity, question, path_generator, config.max_negatives_per_pair
-            )
-            has_valid_path = (
-                pair_result["shortest_path"].strip() != "" or
-                pair_result["semantic_path"].strip() != "" or
-                any(path.strip() != "" for path in pair_result["negative_paths"])
-            )
-            if has_valid_path:
+            pair_result = process_entity_pair(q_entity, a_entity, question, path_generator, config.max_negatives_per_pair)
+            
+            # Only include results where both positive and negative paths exist
+            if pair_result['positive_paths'] and pair_result['negative_paths']:
                 result_item = {
                     "id": sample_id,
                     "question": question,
@@ -132,7 +130,7 @@ def prepare_dataset(args):
             json.dump(all_results, f, ensure_ascii=False, indent=2)
         logger.info(f"Dataset saved to JSON: {json_output_path}")
         processed_dataset = Dataset.from_list(all_results)
-        processed_dataset.save_to_disk(output_dir)
+        processed_dataset.save_to_disk(output_dir) 
         logger.info(f"Dataset saved to: {output_dir}")
     else:
         logger.warning("No results collected, nothing to save")

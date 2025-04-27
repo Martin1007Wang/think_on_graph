@@ -1,1 +1,124 @@
-{"id": "WebQTest-1640", "question": "where is tunis on a map", "ground_truth": ["Tunis Governorate", "Tunisia", "Africa"], "prediction": "Tunis", "start_entities": ["Tunisia", "Tunis"], "reasoning": "Tunisia-[location.country.capital]->Tunis", "verification": "", "is_verified": false, "exploration_history": [{"round": 1, "expansions": [{"entity": "Tunisia", "relations": [{"relation": "location.location.partiallycontains>m.0wg8zl3>location.partial_containment_relationship.partially_contained_by", "targets": ["Tunisia"]}, {"relation": "location.location.partiallycontains>m.0wg8zl3>location.partial_containment_relationship.partially_contains", "targets": ["Medjerda River"]}, {"relation": "location.location.partiallycontains>m.0wg8zkz>location.partial_containment_relationship.partially_contains", "targets": ["Atlas Mountains"]}, {"relation": "location.location.partiallycontains>m.0wg8zkg>location.partial_containment_relationship.partially_contains", "targets": ["Sahara"]}, {"relation": "location.location.partiallycontains>m.0wg8zkg>location.partial_containment_relationship.partially_contained_by", "targets": ["Tunisia"]}, {"relation": "location.country.capital", "targets": ["Tunis"]}, {"relation": "location.location.adjoin_s>m.04_7vdr>location.adjoining_relationship.adjoins", "targets": ["Libya"]}, {"relation": "location.location.adjoin_s>m.04_7nsn>location.adjoining_relationship.adjoins", "targets": ["Sardinia"]}, {"relation": "location.location.adjoin_s>m.05g_jcj>location.adjoining_relationship.adjoins", "targets": ["Algeria"]}, {"relation": "location.location.containedby", "targets": ["Africa", "Arab world", "Greater Maghreb"]}]}, {"entity": "Tunis", "relations": [{"relation": "location.location.contains", "targets": ["The\u00e2tre de l'\u00c9toile du Nord", "Palais de Congress", "Tunisia Private University", "Carthage University", "Tunis University", "University of Ez-Zitouna", "Th\u00e9\u00e2tre municipal de Tunis", "Science Faculty, Tunis", "Stade Chedli Zouiten", "Al-Zaytuna Mosque", "Stade El Menzah", "\u00c9cole Nationale d'Architecture et d'Urbanisme", "Tunis El Manar University"]}, {"relation": "location.location.nearby_airports", "targets": ["Tunis\u2013Carthage International Airport"]}, {"relation": "location.location.time_zones", "targets": ["Central European Time Zone"]}, {"relation": "location.administrative_division.country", "targets": ["Tunisia"]}]}], "answer_found": {"can_answer": true, "reasoning_path": "Tunisia-[location.country.capital]->Tunis", "answer_entities": ["Tunis"], "analysis": "Tunis is the capital of Tunisia", "is_verified": false, "verification": ""}}], "answer_found_during_exploration": true, "fallback_used": false, "structured_answer": {"can_answer": true, "reasoning_path": "Tunisia-[location.country.capital]->Tunis", "answer_entities": ["Tunis"], "analysis": "Tunis is the capital of Tunisia", "is_verified": false, "verification": ""}}
+{
+    "id": "WebQTest-39",
+    "question": "who is niall ferguson 's wife",
+    "ground_truth": [
+        "Ayaan Hirsi Ali"
+    ],
+    "prediction": "Sue Douglas",
+    "start_entities": [
+        "Niall Ferguson"
+    ],
+    "reasoning": "Niall Ferguson-[people.person.spouse_s > [m.0pdtjg5] > people.marriage.spouse]->Sue Douglas",
+    "verification": "",
+    "is_verified": false,
+    "exploration_history": [
+        {
+            "round": 1,
+            "expansions": [
+                {
+                    "entity": "Niall Ferguson",
+                    "relations": [
+                        {
+                            "relation": "people.person.profession",
+                            "targets": [
+                                "Writer",
+                                "Author",
+                                "Historian",
+                                "Professor"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.spouse_s>m.0j4jq57>people.marriage.type_of_union",
+                            "targets": [
+                                "Marriage"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.spouse_s>m.0pdtjg5>people.marriage.spouse",
+                            "targets": [
+                                "Sue Douglas",
+                                "Niall Ferguson"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.spouse_s>m.0j4jq57>freebase.valuenotation.has_value",
+                            "targets": [
+                                "Location of ceremony"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.spouse_s>m.0pdtjg5>freebase.valuenotation.has_value",
+                            "targets": [
+                                "Location of ceremony"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.education>m.04fvmbf>education.education.institution",
+                            "targets": [
+                                "Magdalen College, Oxford"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.education>m.03p7hn6>education.education.institution",
+                            "targets": [
+                                "Peterhouse, Cambridge"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.education>m.03p7h4r>education.education.institution",
+                            "targets": [
+                                "Christ's College, Cambridge"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.education>m.0n163vb>education.education.institution",
+                            "targets": [
+                                "The Glasgow Academy"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.places_lived>m.04hvzc9>people.place_lived.location",
+                            "targets": [
+                                "Glasgow"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.employment_history>m.04hcz0h>business.employment_tenure.company",
+                            "targets": [
+                                "Harvard University"
+                            ]
+                        },
+                        {
+                            "relation": "people.person.employment_history>m.04hcz0h>business.employment_tenure.person",
+                            "targets": [
+                                "Niall Ferguson"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "answer_found": {
+                "can_answer": true,
+                "reasoning_path": "Niall Ferguson-[people.person.spouse_s > [m.0pdtjg5] > people.marriage.spouse]->Sue Douglas",
+                "answer_entities": [
+                    "Sue Douglas"
+                ],
+                "analysis": "Niall Ferguson is married to Sue Douglas.",
+                "is_verified": false,
+                "verification": ""
+            }
+        }
+    ],
+    "answer_found_during_exploration": true,
+    "fallback_used": false,
+    "structured_answer": {
+        "can_answer": true,
+        "reasoning_path": "Niall Ferguson-[people.person.spouse_s > [m.0pdtjg5] > people.marriage.spouse]->Sue Douglas",
+        "answer_entities": [
+            "Sue Douglas"
+        ],
+        "analysis": "Niall Ferguson is married to Sue Douglas.",
+        "is_verified": false,
+        "verification": ""
+    }
+}

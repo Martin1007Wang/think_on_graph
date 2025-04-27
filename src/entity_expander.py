@@ -64,16 +64,6 @@ class EntityExpander:
                     exc_info=True
                 )
         return expansion if expansion.relations else None
-
-    
-    # def _record_direct_paths(self, source: str, relation: str, targets: List[str]) -> None:
-    #     for target in targets:
-    #         if isinstance(target, str):
-    #             self.path_manager.add_path([{
-    #                 'source': source, 
-    #                 'relation': relation, 
-    #                 'target': target
-    #             }])
     
     def _separate_entities(self, entities: List[str]) -> Tuple[List[str], List[str]]:
         is_coded = self.path_manager.is_coded_entity
