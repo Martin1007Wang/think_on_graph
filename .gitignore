@@ -6,6 +6,9 @@ tmp/
 .env
 save_models
 dpo_models/
+dpo_models_v2/
+sft_models/
+sft_models_v2/
 cpo_models/
 wandb/
 data/
