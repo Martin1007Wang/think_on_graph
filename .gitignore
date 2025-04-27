@@ -1,6 +1,7 @@
 *.pyc
 *.out
 .vscode/
+cache
 logs
 tmp/
 .env

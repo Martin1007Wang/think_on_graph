@@ -1,13 +1,13 @@
-export TOKENIZERS_PARALLELISM=false
-export NCCL_P2P_DISABLE=1
+export TOKENIZERS_PARALLELISM=true
 DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
+PREPROCESSED_PATH="cache/dpo_dataset_preprocessed"
 
 # Lora 配置 - 优化速度
-BATCH_SIZE=16
+BATCH_SIZE=32
 USE_PEFT=True
-EPOCH=10
+EPOCH=3
 GRADIENT_CHECKPOINTING=True
-GRADIENT_ACCUMULATION_STEPS=16
+GRADIENT_ACCUMULATION_STEPS=8
 auto_find_batch_size=False
 
 # 量化配置 - 简化为正确的8位量化设置
@@ -15,8 +15,6 @@ LOAD_IN_4BIT=False
 BNB_4BIT_QUANT_TYPE="nf4"
 BNB_4BIT_COMPUTE_DTYPE="bfloat16"
 BNB_4BIT_USE_DOUBLE_QUANT=True
-
-LOAD_IN_8BIT=True  # 8位量化通常比4位量化更快
 
 # LoRA 参数 - 速度优化
 LORA_R=8  # 减小秩以加速
@@ -32,7 +30,7 @@ RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
 
 ATTN_IMP=flash_attention_2
 
-SAVE_PATH=dpo_models/GCR-lora-$(basename "$MODEL_PATH")
+SAVE_PATH=dpo_models_v2/GCR-lora-$(basename "$MODEL_PATH")
 SAVE_NAME=$(basename "$SAVE_PATH")
 
 # DPO特定参数
@@ -43,8 +41,11 @@ MAX_PROMPT_LENGTH=256
 REFERENCE_FREE=False
 LABEL_SMOOTHING=0.0
 
-accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_dpo.py \
+accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_dpo_2.py \
     --data_path_list ${DATASET_LIST}  \
+    --preprocessed_data_path ${PREPROCESSED_PATH} \
+    --use_cache true \
+    --precompute_ref_log_probs True \
     --model_name_or_path ${MODEL_PATH} \
     --output_dir ${SAVE_PATH} \
     --use_peft ${USE_PEFT} \
@@ -55,8 +56,8 @@ accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_d
     --load_in_4bit ${LOAD_IN_4BIT} \
     --load_in_8bit ${LOAD_IN_8BIT} \
     --save_merged ${SAVE_MERGED} \
-    --fp16 True \
-    --bf16 False \
+    --fp16 False \
+    --bf16 True \
     --num_train_epochs ${EPOCH} \
     --per_device_train_batch_size ${BATCH_SIZE} \
     --per_device_eval_batch_size 1 \

@@ -464,16 +464,6 @@ def eval_path_result(predict_file, cal_f1=True, topk=-1):
         f.write(result_str)
 
 def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
-    """评估预测结果，专注于答案的有效性而非路径的合理性。
-    
-    Args:
-        predict_file (str): 预测结果文件路径
-        cal_f1 (bool): 是否计算F1分数
-        topk (int): 评估前K个预测，-1表示所有
-        
-    Returns:
-        None: 结果写入文件
-    """
     eval_name = (
         f"detailed_eval_result_top_{topk}.jsonl"
         if topk > 0

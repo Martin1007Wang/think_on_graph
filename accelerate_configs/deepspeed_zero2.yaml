@@ -2,15 +2,28 @@ compute_environment: LOCAL_MACHINE
 debug: false
 deepspeed_config:
   deepspeed_multinode_launcher: standard
-  gradient_accumulation_steps: 16
+  gradient_accumulation_steps: 8
   offload_optimizer_device: none
   offload_param_device: none
   zero3_init_flag: false
   zero3_save_16bit_model: false
   zero_stage: 2
+  zero_optimization:
+    stage: 2
+    overlap_comm: true
+    contiguous_gradients: true
+    reduce_bucket_size: 5e8
+    allgather_bucket_size: 5e8
   bf16:
     enabled: true
+  communication_data_type: 'bf16'
+  reduce_bucket_size: 5e8
   gradient_clipping: 1.0
+  activation_checkpointing:
+    partition_activations: true
+    contiguous_memory_optimization: true
+  steps_per_print: 50
+  wall_clock_breakdown: false
 distributed_type: DEEPSPEED
 downcast_bf16: 'no'
 machine_rank: 0

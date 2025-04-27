@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Tuple, Set
 
 # 定义目录路径
 dir1 = "/mnt/wangjingxiong/think_on_graph/results/GCR_original/RoG-webqsp/GCR-Meta-Llama-3.1-8B-Instruct/test/zero-shot-group-beam-k10-index_len2"
-dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v4/RoG-webqsp/GCR-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk5"
+dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v6/RoG-webqsp/GCR-lora-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk5"
 
 def load_jsonl(file_path: str) -> List[Dict[str, Any]]:
     """加载JSONL文件内容"""
@@ -21,34 +21,31 @@ def load_jsonl(file_path: str) -> List[Dict[str, Any]]:
     return data
 
 def analyze_method_differences(dir1: str, dir2: str) -> None:
-    """专注分析方法1正确而方法2错误的原因"""
+    """增强：找出所有基准正确但改进错误的case，记录id，统计比例，输出详细case信息和失败原因，保存id到txt，输出更全面的建议。"""
     pred1_path = os.path.join(dir1, "predictions.jsonl")
     pred2_path = os.path.join(dir2, "predictions.jsonl")
-    
+
     if not os.path.exists(pred1_path) or not os.path.exists(pred2_path):
         print("预测文件不存在")
         return
-    
+
     pred1 = load_jsonl(pred1_path)
     pred2 = load_jsonl(pred2_path)
-    
+
     # 转换为ID索引的字典
     pred1_dict = {item["id"]: item for item in pred1}
     pred2_dict = {item["id"]: item for item in pred2}
-    
+
     # 找出共有的问题ID
     common_ids = set(pred1_dict.keys()) & set(pred2_dict.keys())
-    
+
     print(f"=== 方法结构分析 ===")
-    # 分析两个方法的JSON结构差异
     method1_sample = pred1[0] if pred1 else {}
     method2_sample = pred2[0] if pred2 else {}
-    
     print(f"方法1 JSON结构: {list(method1_sample.keys())}")
     print(f"方法2 JSON结构: {list(method2_sample.keys())}")
     print(f"方法2特有字段: {set(method2_sample.keys()) - set(method1_sample.keys())}")
-    
-    # 分析预测格式差异
+
     print("\n=== 预测内容格式分析 ===")
     if pred1 and "prediction" in pred1[0]:
         print(f"方法1预测格式: {type(pred1[0]['prediction'])}")
@@ -58,85 +55,62 @@ def analyze_method_differences(dir1: str, dir2: str) -> None:
             print(f"方法1预测样例: {pred1[0]['prediction'][0][:200]}...")
             if len(pred1[0]['prediction']) > 1:
                 print(f"方法1有多个预测答案，数量: {len(pred1[0]['prediction'])}")
-    
     if pred2 and "prediction" in pred2[0]:
         print(f"方法2预测格式: {type(pred2[0]['prediction'])}")
         print(f"方法2预测样例: {pred2[0]['prediction'][:200]}...")
-    
-    # 核心分析：方法1正确而方法2错误的案例
-    print("\n=== 方法1正确而方法2错误的案例分析 ===")
-    
-    # 统计变量
+
+    print("\n=== 方法1正确但方法2错误的案例分析 ===")
     total_failures = 0
     failure_categories = defaultdict(int)
     failure_examples = defaultdict(list)
-    
-    # 分析策略
+    regression_case_ids = []
+    regression_case_details = []
+    total_cases = 0
+
     for id in common_ids:
         item1 = pred1_dict[id]
         item2 = pred2_dict[id]
-        
-        # 获取ground truth
+        total_cases += 1
         gt = set(item1.get("ground_truth", []))
         if not gt and "ground_truth" in item1:
             if isinstance(item1["ground_truth"], str):
                 gt = {item1["ground_truth"]}
-        
-        # 提取方法1的答案
         pred1_answers = []
         pred1_text = item1.get("prediction", "")
-        
         if isinstance(pred1_text, list):
-            # 从每个预测中提取Answer部分
             for p in pred1_text:
-                if "# Answer:" in p:
+                if isinstance(p, str) and "# Answer:" in p:
                     answer = p.split("# Answer:")[-1].strip()
                     pred1_answers.append(answer)
-            
             if pred1_answers:
                 pred1_text = ", ".join(pred1_answers)
-        
-        # 获取方法2的预测
         pred2_text = item2.get("prediction", "")
-        
-        # 判断正确性
-        m1_correct = any(g.lower() in pred1_text.lower() for g in gt) if gt else False
-        m2_correct = any(g.lower() in pred2_text.lower() for g in gt) if gt else False
-        
-        # 分析方法1正确但方法2错误的情况
+        m1_correct = any(g.lower() in str(pred1_text).lower() for g in gt) if gt else False
+        m2_correct = any(g.lower() in str(pred2_text).lower() for g in gt) if gt else False
         if m1_correct and not m2_correct:
             total_failures += 1
-            
-            # 分析失败原因
+            regression_case_ids.append(id)
             failure_reason = "未知原因"
-            
-            # 检查方法2是否输出了m.编码
-            if "m." in pred2_text:
-                m_codes = re.findall(r'm\.[0-9a-z_]+', pred2_text)
+            if "m." in str(pred2_text):
+                m_codes = re.findall(r'm\.[0-9a-z_]+', str(pred2_text))
                 failure_reason = "m.编码问题"
-                # 看方法1是否有m.编码
-                has_m_code_in_pred1 = any("m." in p for p in pred1_answers) if pred1_answers else "m." in pred1_text
-                
+                has_m_code_in_pred1 = any("m." in p for p in pred1_answers) if pred1_answers else "m." in str(pred1_text)
                 if not has_m_code_in_pred1:
                     failure_reason = "m.编码问题(仅方法2)"
-            
-            # 检查方法2是否输出空或无效内容
-            elif not pred2_text.strip():
+            elif not str(pred2_text).strip():
                 failure_reason = "空预测"
-            
-            # 检查是否遇到格式错误
             elif "exploration_history" in item2 and not item2.get("answer_found_during_exploration", True):
                 failure_reason = "探索未找到答案"
-            
-            # 统计失败原因
+            elif isinstance(pred2_text, list) and not pred2_text:
+                failure_reason = "空列表预测"
+            elif not isinstance(pred2_text, (str, list)):
+                failure_reason = "预测类型异常"
+            elif gt and any(g.lower() in str(pred2_text).lower() for g in gt):
+                failure_reason = "部分命中但未判对"
             failure_categories[failure_reason] += 1
-            
-            # 保存样例(每种类型最多5个)
-            if len(failure_examples[failure_reason]) < 5:
-                # 尝试查找方法2探索历史中的问题
+            if len(failure_examples[failure_reason]) < 10:
                 exploration_issue = ""
                 if "exploration_history" in item2:
-                    # 分析探索历史中是否有m.编码
                     has_m_code_in_exploration = False
                     for round_data in item2.get("exploration_history", []):
                         for expansion in round_data.get("expansions", []):
@@ -144,20 +118,23 @@ def analyze_method_differences(dir1: str, dir2: str) -> None:
                                 if any("m." in str(target) for target in relation.get("targets", [])):
                                     has_m_code_in_exploration = True
                                     break
-                    
                     if has_m_code_in_exploration:
                         exploration_issue = "探索历史包含m.编码"
-                
                 failure_examples[failure_reason].append((id, gt, pred1_text, pred2_text, exploration_issue))
-    
-    # 输出统计结果
-    print(f"方法1正确但方法2错误的总案例数: {total_failures}")
+            regression_case_details.append({
+                "id": id,
+                "question": item1.get("question", item2.get("question", "N/A")),
+                "ground_truth": item1.get("ground_truth", "N/A"),
+                "method1_prediction": pred1_text,
+                "method2_prediction": pred2_text,
+                "failure_reason": failure_reason,
+                "exploration_issue": exploration_issue if 'exploration_issue' in locals() else ""
+            })
+    print(f"方法1正确但方法2错误的总案例数: {total_failures} / {total_cases} ({(total_failures/total_cases*100 if total_cases else 0):.2f}%)")
     print("\n主要失败原因统计:")
     for reason, count in sorted(failure_categories.items(), key=lambda x: x[1], reverse=True):
         percentage = (count / total_failures) * 100 if total_failures > 0 else 0
         print(f"- {reason}: {count} ({percentage:.2f}%)")
-    
-    # 输出具体样例
     print("\n=== 典型失败案例 ===")
     for reason, examples in failure_examples.items():
         print(f"\n【失败原因: {reason}】")
@@ -170,21 +147,31 @@ def analyze_method_differences(dir1: str, dir2: str) -> None:
             if exploration_issue:
                 print(f"探索历史问题: {exploration_issue}")
             print()
-    
-    # 提供针对性解决方案
+    if regression_case_ids:
+        id_path = os.path.join(dir2, "regression_case_ids.txt")
+        with open(id_path, "w") as f:
+            for id in regression_case_ids:
+                f.write(str(id) + "\n")
+        print(f"\n所有基准正确但改进错误的case id已保存到: {id_path}")
+    if regression_case_details:
+        detail_path = os.path.join(dir2, "regression_case_details.json")
+        with open(detail_path, "w", encoding="utf-8") as f:
+            json.dump(regression_case_details, f, ensure_ascii=False, indent=2)
+        print(f"详细case对比信息已保存到: {detail_path}")
     print("\n=== 解决方案 ===")
     if failure_categories.get("m.编码问题", 0) + failure_categories.get("m.编码问题(仅方法2)", 0) > 0:
-        print("1. 添加实体解析: 在方法2中添加一个后处理步骤，将m.编码转换为自然语言实体名称")
-        print("2. 改进提示模板: 明确指示模型返回自然语言答案而非内部编码")
-        print("3. 探索过程优化: 在知识图谱探索过程中就将m.编码转换为实体名称")
-    
+        print("1. 添加实体解析: 在方法2中添加后处理，将m.编码转为实体名称")
+        print("2. 改进提示模板: 明确指示模型返回自然语言答案")
+        print("3. 探索过程优化: 在知识图谱探索中直接转为实体名称")
     if failure_categories.get("探索未找到答案", 0) > 0:
-        print("4. 增加探索轮数: 方法2可能需要更多轮次的探索才能找到正确答案")
-        print("5. 优化关系选择策略: 改进LLM选择关系的方式，确保选择更相关的路径")
-    
+        print("4. 增加探索轮数: 方法2可能需要更多轮次")
+        print("5. 优化关系选择策略: 改进LLM关系选择")
     if failure_categories.get("空预测", 0) > 0:
-        print("6. 改进答案生成逻辑: 确保方法2在探索过程中能够提取出有效答案")
-        print("7. 添加备选答案机制: 当无法确定答案时，提供备选项而非空返回")
+        print("6. 改进答案生成逻辑: 确保方法2能提取有效答案")
+        print("7. 添加备选答案机制: 无法确定时给出备选项")
+    if failure_categories.get("部分命中但未判对", 0) > 0:
+        print("8. 检查评测逻辑: 是否部分命中也应判为正确")
+    print("9. 检查预测格式和类型异常，保证输出稳定")
 
 def analyze_ground_truth_and_evaluation_logic(dir1: str, dir2: str) -> None:
     """验证ground_truth中m.编码的比例和评分逻辑"""

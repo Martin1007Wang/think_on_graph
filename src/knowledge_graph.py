@@ -178,7 +178,7 @@ class KnowledgeGraph:
             
             query = """
             MATCH (source:ENTITY {id: $source_id}), (target:ENTITY {id: $target_id})
-            MATCH paths = shortestPath((source)-[*]->(target))
+            MATCH paths = allShortestPaths((source)-[*1..10]->(target))
             RETURN paths
             """
             paths = []
@@ -243,7 +243,7 @@ class KnowledgeGraph:
         question_emb = self.model.encode(question, convert_to_tensor=True, show_progress_bar=False)
         with self.driver.session() as session:
             query = """
-            MATCH (n:ENTITY {id: $entity_id})-[r:RELATION]-()
+            MATCH (n:ENTITY {id: $entity_id})-[r:RELATION]->()
             RETURN DISTINCT r.type as relation_type
             """
             result = session.run(query, entity_id=entity_id)

@@ -1,6 +1,15 @@
 
 import json
+import logging
 import string
+from functools import lru_cache, wraps
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(console_handler)
+
 
 def read_prompt(prompt_path):
     with open(prompt_path, 'r') as f:
@@ -45,4 +54,15 @@ class InstructFormater(object):
     def format(self, instruction, message):
         return self.prompt_template.format(instruction=instruction, input=message)
     
-
+def error_handler(default_return=None, error_message="Error in operation"):
+    """集中式错误处理装饰器，减少重复的try-except块"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"{error_message}: {e}", exc_info=True)
+                return default_return
+        return wrapper
+    return decorator
