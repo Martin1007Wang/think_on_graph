@@ -29,9 +29,8 @@ class PromptFormatter(Protocol):
 class KnowledgeGraphTemplates:
     """知识图谱推理提示模板管理类"""
     
-    # 核心提示模板定义
     RELATION_SELECTION = """
-    You are a knowledge graph reasoning expert. Given a question and a topic entity, your task is to select the most relevant relations to explore from the provided list.
+    You are a knowledge graph exploration strategist. Given a question and a topic entity, select relevant relations to explore.
 
     # Question: 
     {question}
@@ -42,57 +41,56 @@ class KnowledgeGraphTemplates:
     # Available relations from this entity (select only from these):
     {relations}
 
-    Select up to {max_k_relations} relation IDs that are most relevant to answering the question.
+    Select **up to {max_k_relations}** relation IDs that seem **most promising or potentially relevant** for answering the question. Consider that the answer might require exploring multiple steps.
     Your response should ONLY contain the relation IDs (e.g., REL_0, REL_1) from the list above.
     Valid relation IDs: {relation_ids}
-    Your selection (IDs only):
+    Your selection (IDs only, up to {max_k_relations}):
     """
 
     RELATION_SELECTION_WITH_CONTEXT = """
-    You are a knowledge graph reasoning expert. Given a question, a topic entity, and the exploration history so far, select the most promising relations to explore next.
-    
-    # Question: 
+    You are a knowledge graph exploration strategist. Given a question, a topic entity, the exploration history so far, and the current context entities, select relevant relations to explore next.
+
+    # Question:
     {question}
-    
-    # Current entity to expand: 
+
+    # Topic entity to expand from:
     {entity}
-    
-    # Exploration history so far:
-    {history}
-    
-    # Available relations from this entity (select only from these):
+
+    # Exploration History So Far:
+    {history} 
+    # Current Context Entities:
+    {context}
+
+    # Available relations from '{entity}' (select only from these):
     {relations}
-    
-    Select up to {max_k_relations} relation IDs that are most relevant to answering the question.
-    Your response should ONLY contain the relation IDs (e.g., REL_0, REL_1) from the list above.
+
+    Identify relation IDs that seem **promising or potentially relevant** for finding the answer, considering the question and the information **already uncovered in the history**. Select **up to {max_k_relations}** IDs. Prioritize relations that open **new avenues** not yet explored.
+    Your response should ONLY contain the chosen relation IDs (e.g., REL_0, REL_1) separated by commas or newlines.
     Valid relation IDs: {relation_ids}
-    Your selection (IDs only):
+
+    Your selection (IDs only, up to {max_k_relations}):
     """
     
-    ENTITY_RANKING = """
-    You are a knowledge graph reasoning expert. Given a question and a set of already explored entities, rank the candidate entities by their relevance to answering the question.
-    
+    ENTITY_SELECTION = """
+    You are a knowledge graph exploration strategist. Given a question and a list of candidate entities discovered, select entities to explore further in the next round.
+
     # Question: 
     {question}
-    
-    # Already explored entities: 
-    {explored}
-    
-    # Candidate entities to evaluate:
-    {candidates}
-    
-    For each candidate entity, assign a relevance score from 1-10 (10 being most relevant) based on:
-    1. Direct relevance to the question
-    2. Potential to connect to relevant information
-    3. Uniqueness compared to already explored entities
-    
-    Format your response as:
-    [Entity]: [Score] - [Brief justification]
+
+    # Candidate entities to evaluate (select only from these):
+    {entities} 
+    # (Optional Context - Add if feasible) Exploration History So Far:
+    # {exploration_history} 
+
+    Select **up to {max_k_entities}** entity IDs that seem **most promising or potentially relevant** for finding the answer. Prioritize entities that could lead down **new or diverse paths** compared to what has already been explored (if history provided). Don't discard entities too early if they seem related to the question's topic.
+    Your response should ONLY contain the entity IDs (e.g., ENT_0, ENT_1) from the list above.
+    Valid entity IDs: {entity_ids}
+    Your selection (IDs only, up to {max_k_entities}):
     """
 
     # 推理与决策模板
     REASONING = """
-    You are a knowledge graph reasoning expert. Given a question and information from a knowledge graph, determine if you can answer strictly based on the provided triples.
+    You are a knowledge graph reasoning expert. Given a question and information from a knowledge graph exploration, determine if you can confidently answer based *primarily* on the provided triples and provide the result in JSON format.
 
     # Question: 
     {question}
@@ -104,18 +102,24 @@ class KnowledgeGraphTemplates:
     {exploration_history}
 
     CRITICAL RULES:
-    1. ONLY use EXPLICIT triples shown as Entity--[Relation]-->Target from the exploration.
-    2. NO inference, synthesis, or combining unconnected information.
-    3. Answer MUST ONLY contain exact entity names from triples, comma-separated.
-    4. NEVER create sentences or narratives - ONLY list entity names.
-    5. If multiple valid answers exist, list ALL without modification.
-    
-    Respond in this exact format:
-    Decision: Yes/No
-    Reasoning path: if Yes, step-by-step entity-relation-entity chains
-    Preliminary Answer: ONLY entity names that directly answer the question, comma-separated
-    Verification: Yes/No - whether the answer follows directly from reasoning path without assumptions
-    Final Answer: After verification, ONLY entity names, comma-separated, or state cannot answer
+    1. Base your reasoning *as much as possible* on the EXPLICIT Entity--[Relation]-->Target triples shown in the exploration history. Avoid making large inferential leaps.
+    2. DO NOT synthesize information *significantly* beyond what's present in the triples.
+    3. Prefer directly connected paths. Only combine information from different paths if strongly supported by the context within the history.
+    4. The `answer_entities` list MUST ONLY contain exact entity names found as Targets in the reasoning path *within the history*.
+    5. If a confident answer cannot be constructed *primarily* from the history, set `can_answer` to false.
+
+    Respond ONLY with a valid JSON object adhering to this exact structure:
+    ```json
+    {{
+      "can_answer": boolean, // True if the question can be reasonably answered based *primarily* on the exploration_history, False otherwise.
+      "reasoning_path": "string", // If True: Provide the step-by-step entity--[relation]-->entity chain from the history that leads to the answer. If False, explain why the history provides insufficient evidence.
+      "answer_entities": ["string", ...], // If True: Provide a list of the EXACT entity names that form the answer, extracted directly from the reasoning path targets. Must NOT contain descriptive text. If False, provide an empty list [].
+      "answer_sentence": "string", // If True: Provide a brief natural language sentence summarizing the answer based *only* on the answer_entities. If False, state that the answer cannot be determined.
+      "verification": "string", // Briefly explain the confidence level, pointing to the key supporting triple(s) in the history. If cannot answer, explain confidence is low due to lack of direct evidence.
+      "is_verified": boolean // True if `answer_entities` are strongly supported by the `reasoning_path` from the history, False otherwise.
+    }}
+    ```
+    Ensure the output is a single, valid JSON object and nothing else.
     """
 
     # 零样本和引导提示模板
@@ -247,7 +251,7 @@ class KnowledgeGraphTemplates:
 
     # 最终答案模板 
     FINAL_ANSWER = """
-    You are a knowledge graph reasoning expert. Given a question and the full exploration history of a knowledge graph, provide your best answer.
+    You are a knowledge graph reasoning expert. Given a question and the full exploration history of a knowledge graph, provide your best answer in JSON format.
 
     # Question: 
     {question}
@@ -258,13 +262,26 @@ class KnowledgeGraphTemplates:
     # Full knowledge graph exploration:
     {full_exploration}
 
-    Based on the exploration above, provide your best answer to the question. 
-    Answer the question directly and concisely, using only information from the exploration.
-    If the exploration doesn't contain enough information to answer confidently, explain what's missing.
+    CRITICAL RULES:
+    1. Base your reasoning ONLY on the EXPLICIT Entity--[Relation]-->Target triples shown in the exploration history.
+    2. DO NOT infer or synthesize information not directly present in the triples.
+    3. The `answer_entities` list MUST ONLY contain exact entity names found as Targets in the reasoning path.
+    4. If you cannot answer based SOLELY on the history, set `can_answer` to false.
 
-    Respond in this exact format:
-    Answer: your answer based strictly on information in the exploration
-    Reasoning: step-by-step explanation of how you arrived at the answer
+    Based strictly on the exploration history provided, determine if you can answer the question and formulate your response as a valid JSON object.
+
+    Respond ONLY with a valid JSON object adhering to this exact structure:
+    ```json
+    {{
+      "can_answer": boolean, // True if the question can be answered based *only* on the full_exploration, False otherwise.
+      "reasoning_path": "string", // If can_answer is True, provide the step-by-step entity--[relation]-->entity chain from the history that leads to the answer. If False, explain why the history is insufficient.
+      "answer_entities": ["string", ...], // If can_answer is True, provide a list of the EXACT entity names that form the answer, extracted directly from the reasoning path targets. Must NOT contain descriptive text. If False, provide an empty list [].
+      "answer_sentence": "string", // If can_answer is True, provide a brief natural language sentence summarizing the answer based *only* on the answer_entities. If False, state that the answer cannot be determined.
+      "verification": "string", // Briefly explain the confidence level or point to the specific triples in the history that directly support the answer_entities. If cannot answer, explain confidence is low.
+      "is_verified": boolean // True if `answer_entities` are directly supported by the `reasoning_path` without ambiguity or external knowledge, False otherwise.
+    }}
+    ```
+    Ensure the output is a single, valid JSON object and nothing else.
     """
     
     # 备用答案模板
@@ -292,6 +309,13 @@ class KnowledgeGraphTemplates:
         """初始化并注册所有模板"""
         templates = [
             PromptTemplate(
+                name="fallback_answer",
+                template=self.FALLBACK_ANSWER,
+                category=TemplateCategory.REASONING,
+                required_params=["question"],
+                description="备用答案模板"
+            ),
+            PromptTemplate(
                 name="relation_selection",
                 template=self.RELATION_SELECTION,
                 category=TemplateCategory.RELATION,
@@ -306,11 +330,11 @@ class KnowledgeGraphTemplates:
                 description="基于历史上下文选择最相关的关系"
             ),
             PromptTemplate(
-                name="entity_ranking",
-                template=self.ENTITY_RANKING,
+                name="entity_selection",
+                template=self.ENTITY_SELECTION,
                 category=TemplateCategory.RELATION,
-                required_params=["question", "explored", "candidates"],
-                description="对候选实体进行相关性排序"
+                required_params=["question", "entities", "max_k_entities", "entity_ids"],
+                description="对候选实体进行相关性选择"
             ),
             PromptTemplate(
                 name="reasoning",

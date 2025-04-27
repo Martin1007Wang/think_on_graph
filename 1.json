@@ -1,171 +1,154 @@
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-Today Date: 26 Jul 2024
-
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-You are a knowledge graph reasoning expert. Given a question and a topic entity, your task is to select the most relevant relations to explore from the provided list.
-
-    # Question: 
-    what the time zone in england
-
-    # Topic entity: 
-    England
-
-    # Available relations from this entity (select only from these): [location.country.first_level_divisions
-]
-[location.location.events
-]
-[sports.sport_country.athletes
-]
-[sports.sport_country.athletic_performances
-]
-[location.country.administrative_divisions
-]
-[base.thoroughbredracing.thoroughbred_racehorse_origin.horses_from_this_location
-]
-[organization.organization_scope.organizations_with_this_scope
-]
-[base.uncommon.topic.exceptions
-]
-[base.biblioness.bibs_topic.subsumes
-]
-[royalty.kingdom.rulers
-]
-[common.topic.webpage
-]
-[government.governmental_jurisdiction.governing_officials
-]
-[location.country.languages_spoken
-]
-[olympics.olympic_participating_country.athletes
-]
-[base.aareas.schema.administrative_area.pertinent_type
-]
-[biology.breed_origin.breeds_originating_here
-]
-[periodicals.newspaper_circulation_area.newspapers
-]
-[film.film_location.featured_in_films
-]
-[base.horticulture.cultivar_origin.cultivar
-]
-[location.location.partiallycontains
-]
-[sports.sports_team_location.teams
-]
-[government.governmental_jurisdiction.agencies
-]
-[location.statistical_region.population
-]
-[government.governmental_jurisdiction.official_symbols
-]
-[location.administrative_division.capital
-]
-[location.location.geolocation
-]
-[law.court_jurisdiction_area.courts
-]
-[location.location.adjoin_s
-]
-[olympics.olympic_participating_country.medals_won
-]
-[location.location.partially_contains
-]
-[government.governmental_jurisdiction.government_bodies
-]
-[film.film_subject.films
-]
-[location.statistical_region.gdp_nominal_per_capita
-]
-[religion.religious_leadership_jurisdiction.leader
-]
-[base.localfood.food_producing_region.seasonal_availability
-]
-[food.beer_country_region.beers_from_here
-]
-[base.aareas.schema.administrative_area.administrative_children
-]
-[sports.sport_country.multi_event_tournaments_participated_in
-]
-[base.aareas.schema.administrative_area.subdividing_type
-]
-[event.speech_topic.speeches_or_presentations_on_this_topic
-]
-[common.topic.notable_for
-]
-[common.topic.article
-]
-[fictional_universe.fictional_setting.characters_that_have_lived_here
-]
-[base.charities.geographic_scope.charities
-]
-[location.country.form_of_government
-]
-[location.location.containedby
-]
-[common.topic.image
-]
-[base.popstra.location.vacationers
-]
-[base.retail.retail_outlet.retailer
-]
-[location.statistical_region.gdp_nominal
-]
-[base.ontologies.ontology_instance.equivalent_instances
-]
-[location.statistical_region.arithmetic_population_density
-]
-[location.statistical_region.gdp_real
-]
-[symbols.flag_referent.flag
-]
-[symbols.name_source.namesakes
-]
-[freebase.valuenotation.has_no_value
-]
-[freebase.valuenotation.is_reviewed
-]
-[travel.travel_destination.tour_operators
-]
-[olympics.olympic_participating_country.olympics_participated_in
-]
-[location.location.time_zones
-]
-[location.country.currency_used
-]
-[tv.tv_location.tv_episodes_filmed_here
-]
-[location.country.capital
-]
-[base.aareas.schema.administrative_area.administrative_area_type
-]
-[common.topic.notable_types
-]
-[location.administrative_division.first_level_division_of
-]
-[location.administrative_division.country
-]
-[base.biblioness.bibs_location.country
-]
-[base.aareas.schema.administrative_area.administrative_parent
-]
-[location.country.internet_tld
-]
-
-    Select up to 5 relations that are most relevant to answering the question. Your response must follow this exact format, with no additional text outside the numbered list:
-    1. [relation_name
-] - [brief explanation of relevance
-]
-    2. [relation_name
-] - [brief explanation of relevance
-]
-    ...
-    5. [relation_name
-] - [brief explanation of relevance
-]
-
-    - Only choose relations from the provided list.
-    - If fewer than 5 relations are relevant, repeat the most relevant relation to fill the list.
-    - Do not include any introductory text, conclusions, or extra lines beyond the 5 numbered items.<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+{
+    "id": "WebQTest-164",
+    "question": "what did stephen hawking become famous for",
+    "ground_truth": [
+        "Cosmologist",
+        "Mathematician",
+        "Author",
+        "Physicist",
+        "Writer",
+        "Astronomer",
+        "Science writer",
+        "Astrophysicist",
+        "Professor",
+        "Scientist"
+    ],
+    "start_entities": [
+        "Stephen Hawking"
+    ],
+    "prediction": "g.1yy126n5y, g.1258gz075",
+    "reasoning": "Stephen Hawking --[common.topic.notable_for]--> g.1yy126n5y, Stephen Hawking --[common.topic.notable_for]--> g.1258gz075",
+    "verification": "Confidence is high as the answer is directly supported by the 'notable_for' relation in the exploration history.",
+    "is_verified": true,
+    "exploration_history": [
+        {
+            "round": 1,
+            "expansions": [
+                {
+                    "entity": "Stephen Hawking",
+                    "relations": [
+                        {
+                            "relation": "book.author.works_written",
+                            "targets": [
+                                "The Nature of Space and Time",
+                                "Black Holes and the Information Paradox",
+                                "Vector Fields in Holographic Cosmology",
+                                "The Universe in a Nutshell",
+                                "The Classical Universes of the No-Boundary Quantum State",
+                                "Populating the Landscape: A Top Down Approach",
+                                "The Illustrated Brief History of Time",
+                                "The Measure of the Universe",
+                                "God Created the Integers",
+                                "George's Secret Key to the Universe",
+                                "Gravitational Radiation from Colliding Black Holes",
+                                "A Brief History of Time",
+                                "Computer Resources for People With Disabilities",
+                                "The Grand Design",
+                                "On the Shoulders of Giants",
+                                "The No-Boundary Measure in the Regime of Eternal Inflation",
+                                "Hawking on the big bang and black holes",
+                                "General Relativity; an Einstein Centenary Survey",
+                                "Wave Function of the Universe",
+                                "Black Hole Explosions?",
+                                "A Briefer History of Time",
+                                "Black Holes in General Relativity",
+                                "My Brief History",
+                                "Inflation with Negative Lambda",
+                                "The Development of Irregularities in a Single Bubble Inflationary Universe",
+                                "No-Boundary Measure of the Universe",
+                                "Black Holes and Baby Universes and Other Essays",
+                                "Is the end in sight for theoretical physics?",
+                                "Local Observation in Eternal inflation",
+                                "The Singularities of Gravitational Collapse and Cosmology",
+                                "The Large Scale Structure of Space-Time",
+                                "Volume Weighting in the No Boundary Proposal",
+                                "The Dreams That Stuff Is Made Of: The Most Astounding Papers of Quantum Physics and How They Shook the Scientific World",
+                                "George's Cosmic Treasure Hunt",
+                                "George and the Big Bang",
+                                "The Theory of Everything",
+                                "Accelerated Expansion from Negative Lambda",
+                                "Information Loss in Black Holes",
+                                "A Non Singular Universe"
+                            ]
+                        },
+                        {
+                            "relation": "award.award_winner.awards_won",
+                            "targets": [
+                                "m.0y_xy7t",
+                                "m.0y_xlrj",
+                                "m.05svhbr",
+                                "m.07xjvsn",
+                                "m.05svhbk",
+                                "m.0y4ln9f",
+                                "m.0y_xvsz",
+                                "m.0774fzz",
+                                "m.05svhbb",
+                                "m.06zyf00",
+                                "m.05svhby",
+                                "m.047823n",
+                                "m.0y48nwq",
+                                "m.0x21jn_"
+                            ]
+                        },
+                        {
+                            "relation": "common.topic.notable_for",
+                            "targets": [
+                                "g.1yy126n5y",
+                                "g.1258gz075"
+                            ]
+                        },
+                        {
+                            "relation": "tv.tv_personality.tv_regular_appearances",
+                            "targets": [
+                                "m.0nfjg2_",
+                                "m.0nfjg_9",
+                                "m.0_7_5h9",
+                                "m.0chbhd5",
+                                "m.0vn1kg3",
+                                "m.0nfjgr1",
+                                "m.0vn1lkq",
+                                "m.0vn1l7g"
+                            ]
+                        },
+                        {
+                            "relation": "common.topic.webpage",
+                            "targets": [
+                                "m.09wwsn4",
+                                "m.0h1qqv2",
+                                "m.0b6rt00",
+                                "m.09xtqm8",
+                                "m.09y331x",
+                                "m.0bnt8wr",
+                                "m.09wvnm_"
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "answer_found": {
+                "can_answer": true,
+                "reasoning_path": "Stephen Hawking --[common.topic.notable_for]--> g.1yy126n5y, Stephen Hawking --[common.topic.notable_for]--> g.1258gz075",
+                "answer_entities": [
+                    "g.1yy126n5y",
+                    "g.1258gz075"
+                ],
+                "answer_sentence": "Stephen Hawking is notable for cosmology and theoretical physics.",
+                "verification": "Confidence is high as the answer is directly supported by the 'notable_for' relation in the exploration history.",
+                "is_verified": true
+            }
+        }
+    ],
+    "answer_found_during_exploration": true,
+    "fallback_used": false,
+    "structured_answer": {
+        "can_answer": true,
+        "reasoning_path": "Stephen Hawking --[common.topic.notable_for]--> g.1yy126n5y, Stephen Hawking --[common.topic.notable_for]--> g.1258gz075",
+        "answer_entities": [
+            "g.1yy126n5y",
+            "g.1258gz075"
+        ],
+        "answer_sentence": "Stephen Hawking is notable for cosmology and theoretical physics.",
+        "verification": "Confidence is high as the answer is directly supported by the 'notable_for' relation in the exploration history.",
+        "is_verified": true
+    }
+}

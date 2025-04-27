@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Tuple, Set
 
 # 定义目录路径
 dir1 = "/mnt/wangjingxiong/think_on_graph/results/GCR_original/RoG-webqsp/GCR-Meta-Llama-3.1-8B-Instruct/test/zero-shot-group-beam-k10-index_len2"
-dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v3/RoG-webqsp/GCR-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk10"
+dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v4/RoG-webqsp/GCR-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk5"
 
 def load_jsonl(file_path: str) -> List[Dict[str, Any]]:
     """加载JSONL文件内容"""
@@ -329,8 +329,96 @@ def analyze_ground_truth_and_evaluation_logic(dir1: str, dir2: str) -> None:
         print(f"评分结果: {'正确' if is_correct else '错误'}")
         print()
 
+def analyze_method2_perfect_method1_failure(dir1: str, dir2: str) -> None:
+    """找出方法2完美(F1=1, Acc=1)而方法1完全失败(F1=0, Acc=0)的案例"""
+    pred1_path = os.path.join(dir1, "predictions.jsonl")
+    eval1_path = os.path.join(dir1, "detailed_eval_result.jsonl")
+    pred2_path = os.path.join(dir2, "predictions.jsonl")
+    eval2_path = os.path.join(dir2, "detailed_eval_result.jsonl")
+
+    # Check if all required files exist
+    required_files = [pred1_path, eval1_path, pred2_path, eval2_path]
+    if not all(os.path.exists(p) for p in required_files):
+        print("错误: 缺少必要的预测或评估文件。")
+        missing = [p for p in required_files if not os.path.exists(p)]
+        print(f"缺失的文件: {', '.join(missing)}")
+        return
+
+    # Load data
+    pred1 = load_jsonl(pred1_path)
+    eval1 = load_jsonl(eval1_path)
+    pred2 = load_jsonl(pred2_path)
+    eval2 = load_jsonl(eval2_path)
+
+    # Create dictionaries indexed by ID
+    pred1_dict = {item["id"]: item for item in pred1}
+    eval1_dict = {item["id"]: item for item in eval1}
+    pred2_dict = {item["id"]: item for item in pred2}
+    eval2_dict = {item["id"]: item for item in eval2}
+
+    # Find common IDs across all files
+    common_ids = set(pred1_dict.keys()) & set(eval1_dict.keys()) & set(pred2_dict.keys()) & set(eval2_dict.keys())
+    
+    if not common_ids:
+        print("在所有文件中找不到共同的问题ID。")
+        return
+
+    print("\n=== 方法2完美 & 方法1失败 的案例分析 ===")
+    
+    found_cases = []
+
+    for id in common_ids:
+        item1_pred = pred1_dict[id]
+        item1_eval = eval1_dict[id]
+        item2_pred = pred2_dict[id]
+        item2_eval = eval2_dict[id]
+
+        # Check metrics - Assuming 'ans_f1' and 'ans_acc' exist and are floats
+        # Method 2 Perfect: F1 = 1.0 AND Acc = 1.0
+        m2_perfect = item2_eval.get('ans_f1', 0.0) == 1.0 and item2_eval.get('ans_acc', 0.0) == 1.0
+        
+        # Method 1 Failure: F1 = 0.0 AND Acc = 0.0
+        m1_failure = item1_eval.get('ans_f1', 1.0) == 0.0 and item1_eval.get('ans_acc', 1.0) == 0.0
+
+        if m2_perfect and m1_failure:
+            # Extract relevant info, handling potential missing keys
+            question = item1_pred.get("question", item2_pred.get("question", "N/A"))
+            gt = item1_pred.get("ground_truth", item2_pred.get("ground_truth", "N/A"))
+            pred1_text = item1_pred.get("prediction", "N/A")
+            pred2_text = item2_pred.get("prediction", "N/A")
+
+            # Clean up method 1's prediction if it's a list of strings containing '# Answer:'
+            if isinstance(pred1_text, list):
+                answers = []
+                for p in pred1_text:
+                    if isinstance(p, str) and "# Answer:" in p:
+                         answers.append(p.split("# Answer:")[-1].strip())
+                pred1_text = ", ".join(answers) if answers else str(pred1_text) # Fallback to string representation
+            
+            found_cases.append({
+                "id": id,
+                "question": question,
+                "ground_truth": gt,
+                "method1_prediction": pred1_text,
+                "method2_prediction": pred2_text
+            })
+
+    # Output results
+    if found_cases:
+        print(f"找到 {len(found_cases)} 个方法2完美而方法1失败的案例:")
+        for i, case in enumerate(found_cases, 1):
+            print(f"\n案例 {i}:")
+            print(f"  ID: {case['id']}")
+            print(f"  Question: {case['question']}")
+            print(f"  Ground Truth: {case['ground_truth']}")
+            print(f"  方法1 预测 (失败): {case['method1_prediction']}")
+            print(f"  方法2 预测 (完美): {case['method2_prediction']}")
+    else:
+        print("未找到满足条件 (方法2完美 & 方法1失败) 的案例。")
+
 if __name__ == "__main__":
     print(f"分析目录1: {dir1}")
     print(f"分析目录2: {dir2}\n")
     analyze_method_differences(dir1, dir2)
     # analyze_ground_truth_and_evaluation_logic(dir1, dir2)
+    analyze_method2_perfect_method1_failure(dir1, dir2)
