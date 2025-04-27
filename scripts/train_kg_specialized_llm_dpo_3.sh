@@ -1,6 +1,7 @@
 export TOKENIZERS_PARALLELISM=true
 DATASET_LIST="/mnt/wangjingxiong/think_on_graph/data/processed/RoG-webqsp_train_preference"
-PREPROCESSED_PATH="cache/dpo_dataset_preprocessed"
+# PREPROCESSED_PATH is no longer needed as the script loads the dataset directly
+# PREPROCESSED_PATH="cache/dpo_dataset_preprocessed"
 
 # Lora 配置 - 优化速度
 BATCH_SIZE=32
@@ -12,6 +13,7 @@ auto_find_batch_size=False
 
 # 量化配置 - 简化为正确的8位量化设置
 LOAD_IN_4BIT=False
+LOAD_IN_8BIT=True
 BNB_4BIT_QUANT_TYPE="nf4"
 BNB_4BIT_COMPUTE_DTYPE="bfloat16"
 BNB_4BIT_USE_DOUBLE_QUANT=True
@@ -43,8 +45,6 @@ LABEL_SMOOTHING=0.0
 
 accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_dpo_3.py \
     --data_path_list ${DATASET_LIST}  \
-    --preprocessed_data_path ${PREPROCESSED_PATH} \
-    --use_cache true \
     --precompute_ref_log_probs True \
     --model_name_or_path ${MODEL_PATH} \
     --output_dir ${SAVE_PATH} \
