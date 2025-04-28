@@ -110,14 +110,15 @@ INSTRUCTIONS:
 2. Find all entity names within the history that directly answer the question based on the connecting relations. Use the exact entity names as they appear.
 3. Provide *all* distinct paths found in the history that connect the starting entities to the identified answer entities and support the answer.
 4. When multiple answers exist, include ALL of them in your answer_entities array.
+5. **IMPORTANT: Your output must be a valid JSON object. All property names and all string values (including reasoning_path and analysis) must be enclosed in double quotes. Do not add a trailing comma.**
 
-Respond with a single JSON object in this exact format (with proper quoting):
+Respond with a single JSON object:
 ```json
 {{
-  "can_answer": true or false,
-  "reasoning_path": "Entity1--[relation]-->Entity2--[relation]-->Entity3",
-  "answer_entities": ["Entity Name 1", "Entity Name 2"],
-  "analysis": "Your concise answer or explanation here."
+  "can_answer": boolean, // True in most cases, False only if completely impossible to answer
+  "reasoning_path": "string", // Step-by-step entity--[relation]-->entity chain, even if partial
+  "answer_entities": ["string", ...], // Best candidate target entities or empty list if truly impossible
+  "analysis": "string" // Concise answer statement with confidence level or explanation of impossibility
 }}
 ```"""
 

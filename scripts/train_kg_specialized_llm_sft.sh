@@ -1,5 +1,6 @@
 export TOKENIZERS_PARALLELISM=true
-DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
+export CUDA_VISIBLE_DEVICES=1
+DATASET_LIST="/mnt/wangjingxiong/think_on_graph/data/processed/RoG-webqsp_train_sft_dataset_with_label"
 PREPROCESSED_PATH="cache/sft_dataset_preprocessed"
 
 # Lora 配置 - 优化速度

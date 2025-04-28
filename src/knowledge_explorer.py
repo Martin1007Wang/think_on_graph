@@ -50,7 +50,7 @@ class KnowledgeExplorer:
             f"max_frontier_size={max_frontier_size}"
         )
     
-    def explore_knowledge_graph(self, question: str, start_entities: List[str]) -> Tuple[List[ExplorationRound], bool]:
+    def explore_knowledge_graph(self, question: str, start_entities: List[str], ground_truth: List[str]) -> Tuple[List[ExplorationRound], bool]:
         exploration_history: List[ExplorationRound] = []
         entities_explored: Set[str] = set(start_entities)
         entities_in_context: Set[str] = set(start_entities)
@@ -61,7 +61,8 @@ class KnowledgeExplorer:
             history_str = self.formatter.format_exploration_history(exploration_history)
             round_exploration = self._process_exploration_round(round_num, frontier, question, entities_context, history_str, entities_explored)
             exploration_history.append(round_exploration)
-            answer_result = self._check_for_answer(question, start_entities, exploration_history)
+            history_formatted = self.formatter.format_exploration_history(exploration_history)
+            answer_result = self._check_for_answer(question, start_entities, history_formatted)
             if answer_result.get("can_answer", False):
                 exploration_history[-1].answer_found = answer_result
                 answer_found = True
@@ -115,8 +116,7 @@ class KnowledgeExplorer:
         return round_exploration
     
     def _check_for_answer(self, question: str, start_entities: List[str], exploration_history: List[ExplorationRound]) -> Dict[str, Any]:
-        history_formatted = self.formatter.format_exploration_history(exploration_history)
-        return self.model_interface.check_answerability(question, start_entities, history_formatted)
+        return self.model_interface.check_answerability(question, start_entities, exploration_history)
 
     def get_fallback_answer(self, question: str) -> Dict[str, str]:
         logger.info(f"Generating fallback answer for: {question}")
@@ -150,7 +150,7 @@ class KnowledgeExplorer:
         ground_truth = data.get("answer")
         question_id = data.get("id", f"unknown_id_{hash(question)}")
         start_entities = self._normalize_start_entities(data)
-        exploration_history, answer_found = self.explore_knowledge_graph(question, start_entities)
+        exploration_history, answer_found = self.explore_knowledge_graph(question, start_entities, ground_truth)
         if answer_found and exploration_history:
             final_answer = exploration_history[-1].answer_found
             fallback_used = False

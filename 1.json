@@ -1,14 +1,16 @@
 {
-    "id": "WebQTest-39",
-    "question": "who is niall ferguson 's wife",
+    "id": "WebQTest-20",
+    "question": "what did st augustine do",
     "ground_truth": [
-        "Ayaan Hirsi Ali"
+        "Writer",
+        "Physician",
+        "Philosopher"
     ],
-    "prediction": "Sue Douglas",
+    "prediction": "Love",
     "start_entities": [
-        "Niall Ferguson"
+        "Augustine of Hippo"
     ],
-    "reasoning": "Niall Ferguson--[people.person.spouse_s]-->Sue Douglas",
+    "reasoning": "Augustine of Hippo--[people.person.quotations]->Love",
     "verification": "",
     "is_verified": false,
     "exploration_history": [
@@ -16,12 +18,57 @@
             "round": 1,
             "expansions": [
                 {
-                    "entity": "Niall Ferguson",
+                    "entity": "Augustine of Hippo",
                     "relations": [
                         {
-                            "relation": "people.person.spouse_s>m.0pdtjg5>people.marriage.spouse",
+                            "relation": "people.person.quotations",
                             "targets": [
-                                "Sue Douglas"
+                                "The people who remained victorious were less like conquerors than conquered.",
+                                "If two friends ask you to judge a dispute, don't accept, because you will lose one friend; on the other hand, if two strangers come with the same request, accept because you will gain one friend.",
+                                "Seek not to understand that you may believe, but believe that you may understand.",
+                                "If you believe what you like in the gospels, and reject what you don't like, it is not the gospel you believe, but yourself.",
+                                "Love is the beauty of the soul.",
+                                "I have learnt to love you late, Beauty at once so ancient and so new!",
+                                "God had one son on earth without sin, but never one without suffering.",
+                                "Miracles are not contrary to nature, but only contrary to what we know about nature.",
+                                "Who can map out the various forces at play in one soul? Man is a great depth, O Lord. The hairs of his head are easier by far to count than his feeling, the movements of his heart.",
+                                "Love, and do what you like.",
+                                "The confession of evil works is the first beginning of good works.",
+                                "The greatest evil is physical pain.",
+                                "To many, total abstinence is easier than perfect moderation.",
+                                "By faithfulness we are collected and wound up into unity within ourselves, whereas we had been scattered abroad in multiplicity.",
+                                "Don't you believe that there is in man a deep so profound as to be hidden even to him in whom it is?",
+                                "What does love look like? It has the hands to help others. It has the feet to hasten to the poor and needy. It has eyes to see misery and want. It has the ears to hear the sighs and sorrows of men. That is what love looks like.",
+                                "Forgiveness is the remission of sins. For it is by this that what has been lost, and was found, is saved from being lost again.",
+                                "I have read in Plato and Cicero sayings that are wise and very beautiful; but I have never read in either of them: Come unto me all ye that labor and are heavy laden.",
+                                "I asked the whole frame of the world about my God; and he answered, I am not He, but He made me.",
+                                "I want my friend to miss me as long as I miss him.",
+                                "It was pride that changed angels into devils; it is humility that makes men as angels.",
+                                "To abstain from sin when one can no longer sin is to be forsaken by sin, not to forsake it.",
+                                "The desire is thy prayers; and if thy desire is without ceasing, thy prayer will also be without ceasing. The continuance of your longing is the continuance of your prayer.",
+                                "Faith is to believe what we do not see; and the reward of this faith is to see what we believe.",
+                                "Consequently, if the republic is the weal of the people, and there is no people if it be not associated by a common acknowledgment of right, and if there is no right where there is no justice, then most certainly it follows that there is no republic where there is no justice.",
+                                "Punishment is justice for the unjust.",
+                                "Grant what thou commandest and then command what thou wilt.",
+                                "God loves each of us as if there were only one of us.",
+                                "Complete abstinence is easier than perfect moderation.",
+                                "He that is kind is free, though he is a slave; he that is evil is a slave, though he be a king.",
+                                "A thing is not necessarily true because badly uttered, nor false because spoken magnificently.",
+                                "Order your soul; reduce your wants; live in charity; associate in Christian community; obey the laws; trust in Providence.",
+                                "I found thee not, O Lord, without, because I erred in seeking thee without that wert within.",
+                                "My mind withdrew its thoughts from experience, extracting itself from the contradictory throng of sensuous images, that it might find out what that light was wherein it was bathed.... And thus, with the flash of one hurried glance, it attained to the vision of That Which Is.",
+                                "Find out how much God has given you and from it take what you need; the remainder is needed by others.",
+                                "What I needed most was to love and to be loved, eager to be caught. Happily I wrapped those painful bonds around me; and sure enough, I would be lashed with the red-hot pokers or jealousy, by suspicions and fear, by burst of anger and quarrels.",
+                                "O Holy Spirit, descend plentifully into my heart. Enlighten the dark corners of this neglected dwelling and scatter there Thy cheerful beams.",
+                                "Temperance is love surrendering itself wholly to Him who is its object; courage is love bearing all things gladly for the sake of Him who is its object; justice is love serving only Him who is its object, and therefore rightly ruling; prudence is love making wise distinction between what hinders and what helps itself.",
+                                "If we live good lives, the times are also good. As we are, such are the times.",
+                                "Habit, if not resisted, soon becomes necessity.",
+                                "Thou must be emptied of that wherewith thou art full, that thou mayest be filled with that whereof thou art empty.",
+                                "Do you wish to rise? Begin by descending. You plan a tower that will pierce the clouds? Lay first the foundation of humility.",
+                                "Pray as though everything depended on God. Work as though everything depended on you.",
+                                "This is the very perfection of a man, to find out his own imperfections.",
+                                "Charity is no substitute for justice withheld.",
+                                "No eulogy is due to him who simply does his duty and nothing more."
                             ]
                         }
                     ]
@@ -29,11 +76,11 @@
             ],
             "answer_found": {
                 "can_answer": true,
-                "reasoning_path": "Niall Ferguson--[people.person.spouse_s]-->Sue Douglas",
+                "reasoning_path": "Augustine of Hippo--[people.person.quotations]->Love",
                 "answer_entities": [
-                    "Sue Douglas"
+                    "Love"
                 ],
-                "analysis": "Niall Ferguson's wife is Sue Douglas."
+                "analysis": "Augustine of Hippo's quotes mention 'Love' as an action or concept he is associated with."
             }
         }
     ],
@@ -41,10 +88,10 @@
     "fallback_used": false,
     "structured_answer": {
         "can_answer": true,
-        "reasoning_path": "Niall Ferguson--[people.person.spouse_s]-->Sue Douglas",
+        "reasoning_path": "Augustine of Hippo--[people.person.quotations]->Love",
         "answer_entities": [
-            "Sue Douglas"
+            "Love"
         ],
-        "analysis": "Niall Ferguson's wife is Sue Douglas."
+        "analysis": "Augustine of Hippo's quotes mention 'Love' as an action or concept he is associated with."
     }
 }
