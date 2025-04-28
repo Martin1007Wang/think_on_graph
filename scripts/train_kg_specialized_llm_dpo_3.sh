@@ -1,4 +1,5 @@
 export TOKENIZERS_PARALLELISM=true
+export CUDA_VISIBLE_DEVICES=1
 DATASET_LIST="/mnt/wangjingxiong/think_on_graph/data/processed/RoG-webqsp_train_preference"
 # PREPROCESSED_PATH is no longer needed as the script loads the dataset directly
 # PREPROCESSED_PATH="cache/dpo_dataset_preprocessed"
@@ -32,7 +33,7 @@ RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
 
 ATTN_IMP=flash_attention_2
 
-SAVE_PATH=dpo_models_v3/GCR-lora-$(basename "$MODEL_PATH")
+SAVE_PATH=dpo_models_v3/GCR-lora-dpo_v3_$(basename "$MODEL_PATH")
 SAVE_NAME=$(basename "$SAVE_PATH")
 
 # DPO特定参数

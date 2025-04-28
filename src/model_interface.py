@@ -81,6 +81,7 @@ class ModelInterface:
         template_name = "reasoning"
         reasoning_output = self.generate_output(
             template_name,
+            temp_generation_mode="group-beam",
             question=question,
             entity=", ".join(start_entities),
             exploration_history=exploration_history

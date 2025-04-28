@@ -175,27 +175,7 @@ class HfCausalModel(BaseLanguageModel):
         except Exception as e:
             logger.error(f"Error during text generation: {e}")
             raise
-        finally:
-            # 安全地释放资源
-            try:
-                # 首先释放引用
-                del input_ids, attention_mask, inputs
-                if 'res' in locals(): del res
-                
-                # 调用垃圾回收
-                import gc
-                gc.collect()
-                
-                # 尝试清理 CUDA 缓存，但捕获可能的错误
-                if torch.cuda.is_available():
-                    try:
-                        torch.cuda.empty_cache()
-                    except RuntimeError as e:
-                        logger.warning(f"Failed to empty CUDA cache: {e}")
-            except Exception as e:
-                logger.warning(f"Error during cleanup: {e}")
-                # 继续执行，不让清理错误影响主要功能
-
+        
     def _get_temp_generation_config(self, mode: str) -> GenerationConfig:
         config = GenerationConfig(
             max_new_tokens=self.args.max_new_tokens,
@@ -224,15 +204,27 @@ class HfCausalModel(BaseLanguageModel):
             },
             "group-beam": {
                 "do_sample": False,
-                "num_beams": max(4, self.args.generation_k * 2),
+                "num_beam_groups": min(max(2, self.args.generation_k), 4),
+                "num_beams": None,
                 "num_return_sequences": 1,
-                "num_beam_groups": min(max(2, self.args.generation_k), 5),
                 "diversity_penalty": 1.0
             }
         }
         if mode in mode_configs:
-            for k, v in mode_configs[mode].items():
-                setattr(config, k, v)
+            config_dict = mode_configs[mode]
+            
+            # 特殊处理group-beam模式
+            if mode == "group-beam":
+                # 先设置num_beam_groups
+                num_beam_groups = config_dict["num_beam_groups"]
+                # 计算num_beams为num_beam_groups的倍数，且至少是num_beam_groups的2倍
+                num_beams = num_beam_groups * max(2, self.args.generation_k // num_beam_groups + 1)
+                config_dict["num_beams"] = num_beams
+                
+            for k, v in config_dict.items():
+                if v is not None:  # 跳过None值
+                    setattr(config, k, v)
+                    
         return config
 
     def _update_generation_config(self, config: GenerationConfig, kwargs: Dict[str, Any]) -> GenerationConfig:

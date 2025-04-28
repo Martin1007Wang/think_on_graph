@@ -8,7 +8,7 @@
     "start_entities": [
         "Niall Ferguson"
     ],
-    "reasoning": "Niall Ferguson-[people.person.spouse_s > [m.0pdtjg5] > people.marriage.spouse]->Sue Douglas",
+    "reasoning": "Niall Ferguson--[people.person.spouse_s]-->Sue Douglas",
     "verification": "",
     "is_verified": false,
     "exploration_history": [
@@ -19,79 +19,9 @@
                     "entity": "Niall Ferguson",
                     "relations": [
                         {
-                            "relation": "people.person.profession",
-                            "targets": [
-                                "Writer",
-                                "Author",
-                                "Historian",
-                                "Professor"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.spouse_s>m.0j4jq57>people.marriage.type_of_union",
-                            "targets": [
-                                "Marriage"
-                            ]
-                        },
-                        {
                             "relation": "people.person.spouse_s>m.0pdtjg5>people.marriage.spouse",
                             "targets": [
-                                "Sue Douglas",
-                                "Niall Ferguson"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.spouse_s>m.0j4jq57>freebase.valuenotation.has_value",
-                            "targets": [
-                                "Location of ceremony"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.spouse_s>m.0pdtjg5>freebase.valuenotation.has_value",
-                            "targets": [
-                                "Location of ceremony"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.education>m.04fvmbf>education.education.institution",
-                            "targets": [
-                                "Magdalen College, Oxford"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.education>m.03p7hn6>education.education.institution",
-                            "targets": [
-                                "Peterhouse, Cambridge"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.education>m.03p7h4r>education.education.institution",
-                            "targets": [
-                                "Christ's College, Cambridge"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.education>m.0n163vb>education.education.institution",
-                            "targets": [
-                                "The Glasgow Academy"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.places_lived>m.04hvzc9>people.place_lived.location",
-                            "targets": [
-                                "Glasgow"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.employment_history>m.04hcz0h>business.employment_tenure.company",
-                            "targets": [
-                                "Harvard University"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.employment_history>m.04hcz0h>business.employment_tenure.person",
-                            "targets": [
-                                "Niall Ferguson"
+                                "Sue Douglas"
                             ]
                         }
                     ]
@@ -99,13 +29,11 @@
             ],
             "answer_found": {
                 "can_answer": true,
-                "reasoning_path": "Niall Ferguson-[people.person.spouse_s > [m.0pdtjg5] > people.marriage.spouse]->Sue Douglas",
+                "reasoning_path": "Niall Ferguson--[people.person.spouse_s]-->Sue Douglas",
                 "answer_entities": [
                     "Sue Douglas"
                 ],
-                "analysis": "Niall Ferguson is married to Sue Douglas.",
-                "is_verified": false,
-                "verification": ""
+                "analysis": "Niall Ferguson's wife is Sue Douglas."
             }
         }
     ],
@@ -113,12 +41,10 @@
     "fallback_used": false,
     "structured_answer": {
         "can_answer": true,
-        "reasoning_path": "Niall Ferguson-[people.person.spouse_s > [m.0pdtjg5] > people.marriage.spouse]->Sue Douglas",
+        "reasoning_path": "Niall Ferguson--[people.person.spouse_s]-->Sue Douglas",
         "answer_entities": [
             "Sue Douglas"
         ],
-        "analysis": "Niall Ferguson is married to Sue Douglas.",
-        "is_verified": false,
-        "verification": ""
+        "analysis": "Niall Ferguson's wife is Sue Douglas."
     }
 }

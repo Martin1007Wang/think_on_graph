@@ -74,8 +74,8 @@ Your selection (IDs only, up to {max_k_relations}):"""
 We've reached the following point in our exploration:
 {source_entity} -> {source_relation} -> some intermediate entity
 
-Now we need to select the most promising next paths to follow from this intermediate entity.
-Select up to {max_paths} paths that are most likely to lead to the answer:
+Now we need to select potentially relevant next paths to follow from this intermediate entity.
+Select up to {max_paths} paths that seem relevant or useful for answering the question. Consider that the answer might require exploring multiple paths.
 
 {path_options}
 
@@ -94,7 +94,7 @@ Select up to {max_k_entities} entity IDs that seem most promising or potentially
 Your response should ONLY contain the entity IDs (e.g., ENT_0, ENT_1) from the list above.
 Your selection (IDs only, up to {max_k_entities}):"""
 
-    REASONING: ClassVar[str] = """You are a knowledge graph reasoning expert. Answer questions using ONLY the provided exploration history triples.
+    REASONING: ClassVar[str] = """You are a meticulous knowledge graph analyst. Your task is to answer a question based *strictly* on the provided exploration history triples.
 
 # Question:
 {question}
@@ -106,11 +106,10 @@ Your selection (IDs only, up to {max_k_entities}):"""
 {exploration_history}
 
 INSTRUCTIONS:
-1. Use ONLY information from the exploration history. No external knowledge.
-2. Include ONLY exact entity names from the history in your answer_entities.
-3. If insufficient evidence exists, set can_answer to false.
-4. IMPORTANT: Make sure your JSON is valid - all string values must be properly quoted.
-5. For reasoning_path, use a properly quoted string showing the entity-relation-entity chain.
+1. Base your response *exclusively* on the triples provided in the Exploration History. DO NOT use any external knowledge or infer relationships not explicitly stated in the history.
+2. Find all entity names within the history that directly answer the question based on the connecting relations. Use the exact entity names as they appear.
+3. Provide *all* distinct paths found in the history that connect the starting entities to the identified answer entities and support the answer.
+4. When multiple answers exist, include ALL of them in your answer_entities array.
 
 Respond with a single JSON object in this exact format (with proper quoting):
 ```json

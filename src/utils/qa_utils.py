@@ -365,100 +365,113 @@ def eval_joint_result(predict_file):
         f.write(result_str)
 
 def eval_path_result(predict_file, cal_f1=True, topk=-1):
-    # predict_file = os.path.join(result_path, 'predictions.jsonl')
     eval_name = (
-        "detailed_eval_result_top_{topk}.jsonl"
+        f"detailed_eval_result_top_{topk}.jsonl"
         if topk > 0
         else "detailed_eval_result.jsonl"
     )
     detailed_eval_file = predict_file.replace("predictions.jsonl", eval_name)
-    # Load results
-    acc_list = []
-    hit_list = []
-    f1_list = []
-    precission_list = []
-    recall_list = []
-    path_f1_list = []
-    path_precission_list = []
-    path_recall_list = []
+    # Initialize counters
+    if cal_f1:
+        sum_acc = sum_hit = sum_f1 = sum_precision = sum_recall = 0
+        sum_path_f1 = sum_path_precision = sum_path_recall = 0
+        count = 0
+    else:
+        sum_acc = sum_hit = count = 0
+
     with open(predict_file, "r") as f, open(detailed_eval_file, "w") as f2:
         for line in f:
             try:
                 data = json.loads(line)
-            except:
+            except json.JSONDecodeError:
                 print(line)
                 continue
-            id = data["id"]
-            prediction = data["prediction"]
-            answer = list(set(data["ground_truth"]))
-            
-            if len(data["ground_truth_paths"]) == 0 or len(answer) == 0:
+            id = data.get("id")
+            prediction = data.get("prediction", [])
+            # Remove start_entities from predictions
+            start_entities = set(data.get("start_entities", []))
+            prediction = [p for p in prediction if p not in start_entities]
+            answer = list(set(data.get("ground_truth", [])))
+
+            if not prediction or len(data.get("ground_truth_paths", [])) == 0 or not answer:
                 continue
-            
+
             if cal_f1:
                 prediction = extract_topk_prediction(prediction, topk)
                 f1_score, precision_score, recall_score = eval_f1(prediction, answer)
-                f1_list.append(f1_score)
-                precission_list.append(precision_score)
-                recall_list.append(recall_score)
-                prediction_str = " ".join(prediction)
-                acc = eval_acc(prediction_str, answer)
-                hit = eval_hit(prediction_str, answer)
-                acc_list.append(acc)
-                hit_list.append(hit)
                 path_f1_score, path_precision_score, path_recall_score = eval_f1(
-                    prediction, data["ground_truth_paths"]
+                    prediction, data.get("ground_truth_paths", [])
                 )
-                path_f1_list.append(path_f1_score)
-                path_precission_list.append(path_precision_score)
-                path_recall_list.append(path_recall_score)
-                f2.write(
-                    json.dumps(
-                        {
-                            "id": id,
-                            "prediction": prediction,
-                            "ground_truth": answer,
-                            "ans_acc": acc,
-                            "ans_hit": hit,
-                            "ans_f1": f1_score,
-                            "ans_precission": precision_score,
-                            "ans_recall": recall_score,
-                            "path_f1": path_f1_score,
-                            "path_precision": path_precision_score,
-                            "path_recall": path_recall_score,
-                        }
-                    )
-                    + "\n"
-                )
+
+            # Compute accuracy and hit
+            if cal_f1:
+                pred_str = " ".join(prediction)
+                acc = eval_acc(pred_str, answer)
+                hit = eval_hit(pred_str, answer)
             else:
                 acc = eval_acc(prediction, answer)
                 hit = eval_hit(prediction, answer)
-                acc_list.append(acc)
-                hit_list.append(hit)
+
+            # Update sums
+            sum_acc += acc
+            sum_hit += hit
+            if cal_f1:
+                sum_f1 += f1_score
+                sum_precision += precision_score
+                sum_recall += recall_score
+                sum_path_f1 += path_f1_score
+                sum_path_precision += path_precision_score
+                sum_path_recall += path_recall_score
+
+            count += 1
+
+            # Write detailed results
+            if cal_f1:
                 f2.write(
-                    json.dumps(
-                        {
-                            "id": id,
-                            "prediction": prediction,
-                            "ground_truth": answer,
-                            "acc": acc,
-                            "hit": hit,
-                        }
-                    )
-                    + "\n"
+                    json.dumps({
+                        "id": id,
+                        "prediction": prediction,
+                        "ground_truth": answer,
+                        "ans_acc": acc,
+                        "ans_hit": hit,
+                        "ans_f1": f1_score,
+                        "ans_precission": precision_score,
+                        "ans_recall": recall_score,
+                        "path_f1": path_f1_score,
+                        "path_precision": path_precision_score,
+                        "path_recall": path_recall_score,
+                    }) + "\n"
+                )
+            else:
+                f2.write(
+                    json.dumps({
+                        "id": id,
+                        "prediction": prediction,
+                        "ground_truth": answer,
+                        "acc": acc,
+                        "hit": hit,
+                    }) + "\n"
                 )
 
-    if len(f1_list) > 0:
-        result_str = f"Accuracy: {sum(acc_list) * 100 / len(acc_list)} Hit: {sum(hit_list) * 100 / len(hit_list)} F1: {sum(f1_list) * 100 / len(f1_list)} Precision: {sum(precission_list) * 100 / len(precission_list)} Recall: {sum(recall_list) * 100 / len(recall_list)} Path F1: {sum(path_f1_list) * 100 / len(path_f1_list)} Path Precision: {sum(path_precission_list) * 100 / len(path_precission_list)} Path Recall: {sum(path_recall_list) * 100 / len(path_recall_list)}"
-    else:
+    # Compute and print summary
+    if cal_f1 and count > 0:
+        avg_mult = 100.0 / count
         result_str = (
-            "Accuracy: "
-            + str(sum(acc_list) * 100 / len(acc_list))
-            + " Hit: "
-            + str(sum(hit_list) * 100 / len(hit_list))
+            f"Accuracy: {sum_acc * avg_mult} "
+            f"Hit: {sum_hit * avg_mult} "
+            f"F1: {sum_f1 * avg_mult} "
+            f"Precision: {sum_precision * avg_mult} "
+            f"Recall: {sum_recall * avg_mult} "
+            f"Path F1: {sum_path_f1 * avg_mult} "
+            f"Path Precision: {sum_path_precision * avg_mult} "
+            f"Path Recall: {sum_path_recall * avg_mult}"
         )
+    else:
+        mult = 100.0 / count if count > 0 else 0.0
+        result_str = f"Accuracy: {sum_acc * mult} Hit: {sum_hit * mult}"
+
     print(result_str)
-    result_name = "eval_result_top_{topk}.txt" if topk > 0 else "eval_result.txt"
+    result_name = f"eval_result_top_{topk}.txt" if topk > 0 else "eval_result.txt"
     eval_result_path = predict_file.replace("predictions.jsonl", result_name)
     with open(eval_result_path, "w") as f:
         f.write(result_str)

@@ -3,7 +3,7 @@ DATASET_LIST="data/processed/rmanluo/RoG-webqsp_train"
 PREPROCESSED_PATH="cache/sft_dataset_preprocessed"
 
 # Lora 配置 - 优化速度
-BATCH_SIZE=32
+BATCH_SIZE=16
 USE_PEFT=True
 EPOCH=20
 GRADIENT_CHECKPOINTING=True
