@@ -1,106 +1,27 @@
 {
-    "id": "WebQTest-43",
-    "question": "what did george clemenceau do",
+    "id": "WebQTest-20",
+    "question": "what did st augustine do",
+    "prediction": [
+        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Physician\n# Answer:\nPhysician",
+        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Physician\n# Answer:\nPhysician",
+        "# Reasoning Path:\nAugustine of Hippo -> base.saints.saint.venerated_in -> Eastern Christianity -> religion.religion.is_part_of -> Christianity\n# Answer:\nChristianity",
+        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Writer\n# Answer:\nWriter",
+        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Philosopher\n# Answer:\nPhilosopher",
+        "# Reasoning Path:\nAugustine of Hippo -> common.topic.notable_types -> Religious Leader\n# Answer:\nReligious Leader",
+        "# Reasoning Path:\nAugustine of Hippo -> book.author.works_written -> The works of Saint Augustine\n# Answer:\nThe works of Saint Augustine",
+        "# Reasoning Path:\nAugustine of Hippo -> base.saints.saint.venerated_in -> Oriental Orthodoxy -> religion.religion.is_part_of -> Christianity\n# Answer:\nChristianity",
+        "# Reasoning Path:\nAugustine of Hippo -> common.topic.notable_types -> Religious Leader\n# Answer:\nReligious Leader",
+        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Physician\n# Answer:\nPhysician"
+    ],
     "ground_truth": [
-        "Physician",
         "Writer",
-        "Statesman",
-        "Journalist",
-        "Publisher"
+        "Physician",
+        "Philosopher"
     ],
-    "prediction": "Journalist",
-    "start_entities": [
-        "Georges Cl\u00e9menceau"
+    "ground_truth_paths": [
+        "Augustine of Hippo -> people.person.profession -> Writer",
+        "Augustine of Hippo -> people.person.profession -> Physician",
+        "Augustine of Hippo -> people.person.profession -> Philosopher"
     ],
-    "reasoning": "Georges Cl\u00e9menceau-[people.person.profession]->Journalist",
-    "verification": "",
-    "is_verified": false,
-    "exploration_history": [
-        {
-            "round": 1,
-            "expansions": [
-                {
-                    "entity": "Georges Cl\u00e9menceau",
-                    "relations": [
-                        {
-                            "relation": "people.person.profession",
-                            "targets": [
-                                "Journalist",
-                                "Publisher",
-                                "Writer",
-                                "Statesman",
-                                "Physician"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.places_lived>m.03psnjv>people.place_lived.location",
-                            "targets": [
-                                "Pays de la Loire"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.places_lived>m.03psnjv>people.place_lived.person",
-                            "targets": [
-                                "Georges Cl\u00e9menceau"
-                            ]
-                        },
-                        {
-                            "relation": "people.person.gender",
-                            "targets": [
-                                "Male"
-                            ]
-                        },
-                        {
-                            "relation": "government.politician.party>m.07ldssb>government.political_party_tenure.politician",
-                            "targets": [
-                                "Georges Cl\u00e9menceau"
-                            ]
-                        },
-                        {
-                            "relation": "government.politician.party>m.07ldssb>government.political_party_tenure.party",
-                            "targets": [
-                                "Radical Party"
-                            ]
-                        },
-                        {
-                            "relation": "film.person_or_entity_appearing_in_film.films>m.011f61pw>film.personal_film_appearance.type_of_appearance",
-                            "targets": [
-                                "Him/Herself"
-                            ]
-                        },
-                        {
-                            "relation": "film.person_or_entity_appearing_in_film.films>m.011f61pw>film.personal_film_appearance.film",
-                            "targets": [
-                                "Woodrow Wilson and the Birth of the American Century"
-                            ]
-                        },
-                        {
-                            "relation": "film.person_or_entity_appearing_in_film.films>m.011f61pw>film.personal_film_appearance.person",
-                            "targets": [
-                                "Georges Cl\u00e9menceau"
-                            ]
-                        }
-                    ]
-                }
-            ],
-            "answer_found": {
-                "can_answer": true,
-                "reasoning_path": "Georges Cl\u00e9menceau-[people.person.profession]->Journalist",
-                "answer_entities": [
-                    "Journalist"
-                ],
-                "analysis": "High Confidence - Direct Alignment with Question Intent"
-            }
-        }
-    ],
-    "answer_found_during_exploration": true,
-    "fallback_used": false,
-    "structured_answer": {
-        "can_answer": true,
-        "reasoning_path": "Georges Cl\u00e9menceau-[people.person.profession]->Journalist",
-        "answer_entities": [
-            "Journalist"
-        ],
-        "analysis": "High Confidence - Direct Alignment with Question Intent"
-    }
+    "input": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 26 Jul 2024\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nReasoning path is a sequence of triples in the KG that connects the topic entities in the question to answer entities. Given a question, please generate some reasoning paths in the KG starting from the topic entities to answer the question.\n                        # Question: \n                        what did st augustine do?\n                        # Topic entities: \n                        Augustine of Hippo<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
 }
