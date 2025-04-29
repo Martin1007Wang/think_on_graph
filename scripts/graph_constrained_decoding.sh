@@ -1,13 +1,3 @@
-#!/bin/bash
-
-# 首先监控进程1578608是否结束
-echo "正在等待进程 1578608 结束..."
-while ps -p 1578608 &>/dev/null; do
-    echo "进程 1578608 仍在运行，等待 30 秒后再次检查..."
-    sleep 30
-done
-echo "进程 1578608 已结束，开始执行后续任务..."
-
 export HF_ENDPOINT=https://hf-mirror.com
 export CUDA_VISIBLE_DEVICES=1
 DATA_PATH=rmanluo

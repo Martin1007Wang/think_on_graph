@@ -23,7 +23,7 @@ class HfCausalModel(BaseLanguageModel):
     def add_args(parser):
         group = parser.add_argument_group("HfCausalModel")
         group.add_argument("--maximum_token", type=int, default=8000, help="Max input token length")
-        group.add_argument("--max_new_tokens", type=int, default=1024, help="Max generation length")
+        group.add_argument("--max_new_tokens", type=int, default=4096, help="Max generation length")
         group.add_argument("--dtype", choices=list(HfCausalModel.DTYPE_MAPPING.keys()), default="bf16")
         group.add_argument("--quant", choices=["none", "4bit", "8bit"], default="none")
         group.add_argument("--attn_implementation", default="flash_attention_2",

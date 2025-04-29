@@ -36,38 +36,58 @@ class PromptFormatter(Protocol):
         ...
 
 class KnowledgeGraphTemplates:
-    RELATION_SELECTION: ClassVar[str] = """You are a knowledge graph exploration strategist. Given a question and a topic entity, select relevant relations to explore.
+    RELATION_SELECTION: ClassVar[str] = """**Role:** Knowledge Graph Exploration Strategist
 
-# Question: 
-{question}
+**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question', considering the context provided. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
 
-# Topic entity: 
-{entity}
+**Context:**
+* Question: `{question}`
+* Current Entity: `{entity}`
+* Available Relations (from Current Entity):
+    ```
+    {relations}
+    ```
+**Task:**
+1.  Review the context and the 'Available Relations' list.
+2.  Choose up to `{max_k_relations}` **lines** from the 'Available Relations' list that represent the most promising relations to explore.
+3.  **CRITICAL: Output Requirements:**
+    * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.
+    * List one selected line per line in your response.
+    * **Example Output Format (if selecting two lines):**
+        ```
+        [REL_9] people.person.profession
+        [REL_12] music.artist.genre
+        ```
+    * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
 
-# Available relations from this entity:
-{relations}
+**Your Selection (Up to {max_k_relations} exact lines from the list above):**"""
 
-Select up to {max_k_relations} relation IDs that seem most promising or potentially relevant for answering the question. Consider that the answer might require exploring multiple steps.
-Your response should ONLY contain the relation IDs (e.g., REL_0, REL_1) from the list above.
-Your selection (IDs only, up to {max_k_relations}):"""
+    RELATION_SELECTION_WITH_CONTEXT: ClassVar[str] = """**Role:** Knowledge Graph Exploration Strategist
 
-    RELATION_SELECTION_WITH_CONTEXT: ClassVar[str] = """You are a knowledge graph exploration strategist. Given a question, a topic entity, the exploration history so far, select relevant relations to explore next.
+**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question', considering the context provided. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
 
-# Question:
-{question}
+**Context:**
+* Question: `{question}`
+* Current Entity: `{entity}`
+* Exploration History: `{history}`
+* Available Relations (from Current Entity):
+    ```
+    {relations}
+    ```
+**Task:**
+1.  Review the context and the 'Available Relations' list.
+2.  Choose up to `{max_k_relations}` **lines** from the 'Available Relations' list that represent the most promising relations to explore.
+3.  **CRITICAL: Output Requirements:**
+    * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.
+    * List one selected line per line in your response.
+    * **Example Output Format (if selecting two lines):**
+        ```
+        [REL_9] people.person.profession
+        [REL_12] music.artist.genre
+        ```
+    * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
 
-# Topic entity to expand from:
-{entity}
-
-# Exploration History So Far:
-{history} 
-
-# Available relations from this entity:
-{relations}
-
-Select up to {max_k_relations} relation IDs that seem most promising or potentially relevant for answering the question. Consider that the answer might require exploring multiple steps.
-Your response should ONLY contain the relation IDs (e.g., REL_0, REL_1) from the list above.
-Your selection (IDs only, up to {max_k_relations}):"""
+**Your Selection (Up to {max_k_relations} exact lines from the list above):**"""
     
     INTERMEDIATE_PATH_SELECTION: ClassVar[str] = """You are a knowledge graph exploration strategist. To answer the question: "{question}"
 
@@ -94,33 +114,43 @@ Select up to {max_k_entities} entity IDs that seem most promising or potentially
 Your response should ONLY contain the entity IDs (e.g., ENT_0, ENT_1) from the list above.
 Your selection (IDs only, up to {max_k_entities}):"""
 
-    REASONING: ClassVar[str] = """You are a meticulous knowledge graph analyst. Your task is to answer a question based *strictly* on the provided exploration history triples.
+    REASONING: ClassVar[str] = """**Task:** Extract descriptive answer entities for the Question strictly from the object part (after '->') of relevant triples in the Exploration History. Format the output as a JSON list.
 
-# Question:
-{question}
+**Inputs:**
+* Question: `{question}`
+* Starting Entities: `{entity}`
+* Exploration History (Triples): `{exploration_history}`
 
-# Starting entities:
-{entity}
-
-# Exploration History:
-{exploration_history}
-
-INSTRUCTIONS:
-1. Base your response *exclusively* on the triples provided in the Exploration History. DO NOT use any external knowledge or infer relationships not explicitly stated in the history.
-2. Find all entity names within the history that directly answer the question based on the connecting relations. Use the exact entity names as they appear.
-3. Provide *all* distinct paths found in the history that connect the starting entities to the identified answer entities and support the answer.
-4. When multiple answers exist, include ALL of them in your answer_entities array.
-5. **IMPORTANT: Your output must be a valid JSON object. All property names and all string values (including reasoning_path and analysis) must be enclosed in double quotes. Do not add a trailing comma.**
-
-Respond with a single JSON object:
-```json
-{{
-  "can_answer": boolean, // True in most cases, False only if completely impossible to answer
-  "reasoning_path": "string", // Step-by-step entity--[relation]-->entity chain, even if partial
-  "answer_entities": ["string", ...], // Best candidate target entities or empty list if truly impossible
-  "analysis": "string" // Concise answer statement with confidence level or explanation of impossibility
-}}
-```"""
+**Instructions:**
+1.  **Strict Adherence:** Base answer *solely* on provided triples; no external knowledge or inference.
+2.  **Find All Answers:** Identify ALL answer entities in the history (use exact names). **IMPORTANT: If the object part of a triple (after `->`) contains multiple values separated by commas (e.g., `Val1, Val2, Val3`), you MUST treat each value as a distinct entity and include each one separately in the `answer_entities` array.**
+3.  **Trace All Paths:** Identify and include ALL reasoning paths that lead to the identified answer entities. Path *content* format: `Entity1--[relation1]-->Entity2`. If one path string leads to multiple comma-separated answers, include that single path string once in `reasoning_paths`.
+4.  **JSON Output:**
+    * Respond with a *single*, *strictly valid* JSON object.
+    * **CRITICAL JSON RULES:**
+        * Adhere precisely to the structure below.
+        * **ALL** string values (keys, values, array elements) **MUST** use double quotes (`"`).
+        * No trailing commas.
+    * **JSON Structure:**
+        ```json
+        {{
+          "can_answer": <boolean>, // True if answer found in history
+          "reasoning_paths": [ // Array of all reasoning path strings leading to answers
+                               // Each element MUST be a string like: "EntityA--[relX]-->Answer1[, Answer2...]"
+            "EntityA--[relationX]-->Answer1, Answer2",
+            "EntityB--[relationY]-->Answer3"
+            // ... include all paths
+          ],
+          "answer_entities": [ // Array of all unique answer entity names
+                               // Each element MUST be a string like: "AnswerEntity1"
+                               // **If a triple yields comma-separated values like "Val1, Val2", list them as ["Val1", "Val2"].**
+            "AnswerEntity1",
+            "AnswerEntity2"
+            // ... include all answers extracted according to Instruction #2
+          ],
+          "analysis": "<string> // Explain how paths yield answers, based only on history triples."
+        }}
+        ```"""
 
     FINAL_ANSWER: ClassVar[str] = """You are a knowledge graph reasoning expert. Answer the question using the provided exploration history, providing your best answer even when evidence is limited.
 
