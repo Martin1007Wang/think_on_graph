@@ -246,7 +246,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_path', type=str, default='rmanluo')
     parser.add_argument('--data_name', type=str, default='RoG-webqsp')
     parser.add_argument('--split', type=str, default='test[:100]')
-    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning_v6')
+    parser.add_argument('--predict_path', type=str, default='results/IterativeReasoning_v7')
     parser.add_argument('--force', action='store_true', help='Force overwrite existing results')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--prefix', type=str, default="")

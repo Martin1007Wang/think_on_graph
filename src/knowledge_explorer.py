@@ -61,7 +61,7 @@ class KnowledgeExplorer:
             history_str = self.formatter.format_exploration_history(exploration_history)
             round_exploration = self._process_exploration_round(round_num, frontier, question, entities_context, history_str, entities_explored)
             exploration_history.append(round_exploration)
-            history_formatted = self.formatter.format_exploration_history(exploration_history)
+            history_formatted = self._filter_history(exploration_history, question)
             answer_result = self._check_for_answer(question, start_entities, history_formatted)
             if answer_result.get("can_answer", False):
                 exploration_history[-1].answer_found = answer_result
@@ -69,40 +69,24 @@ class KnowledgeExplorer:
                 break
         return exploration_history, answer_found
     
-    def _prioritize_frontier(self, frontier: List[str], question: str, current_round: int) -> List[str]:
-        """Prioritize frontier entities based on relevance to question"""
-        if len(frontier) <= self.max_frontier_size:
-            return frontier
+    def _filter_history(self, exploration_history: List[ExplorationRound], question: str, max_paths: int = 10) -> str:
+        paths = self._split_paths(exploration_history)
+        if len(paths) <= max_paths:
+            return self.formatter.format_exploration_history(exploration_history)
+        selected_paths = self.model_interface.select_paths(question, paths, max_paths)
+        return selected_paths
             
-        try:
-            # Ask model to rank entities by relevance
-            entity_list = "\n".join([f"[{i}] {entity}" for i, entity in enumerate(frontier)])
-            selection_output = self.model_interface.generate_output(
-                "frontier_prioritization",
-                question=question,
-                entities=entity_list,
-                max_entities=self.max_frontier_size,
-                current_round=current_round
-            )
-            
-            # Parse selected indices
-            selected_indices = []
-            for match in re.finditer(r'\[(\d+)\]', selection_output):
-                try:
-                    idx = int(match.group(1))
-                    if 0 <= idx < len(frontier):
-                        selected_indices.append(idx)
-                except ValueError:
-                    continue
-                    
-            # If we got valid selections, use them
-            if selected_indices and len(selected_indices) <= self.max_frontier_size:
-                return [frontier[i] for i in selected_indices]
-        except Exception as e:
-            logger.warning(f"Error prioritizing frontier: {e}")
-            
-        # Fallback: just take the first max_frontier_size entities
-        return frontier[:self.max_frontier_size]
+    def _split_paths(self, exploration_history: List[ExplorationRound]) -> Tuple[List[str], Dict[str, str]]:
+        formatted_paths = []
+        for round_data in exploration_history:
+            for expansion in round_data.expansions:
+                entity = expansion.entity
+                for relation_data in expansion.relations:
+                    relation = relation_data.relation
+                    for target in relation_data.targets:
+                        path = f"{entity}-[{relation}]->{target}"
+                        formatted_paths.append(path)
+        return formatted_paths
     
     def _process_exploration_round(self, round_num: int, frontier: List[str], question: str, 
                                   entities_context: str, history_str: str, 

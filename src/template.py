@@ -89,18 +89,32 @@ class KnowledgeGraphTemplates:
 
 **Your Selection (Up to {max_k_relations} exact lines from the list above):**"""
     
-    INTERMEDIATE_PATH_SELECTION: ClassVar[str] = """You are a knowledge graph exploration strategist. To answer the question: "{question}"
+    PATH_SELECTION: ClassVar[str] = """**Role:** Knowledge Graph Path Evaluator
 
-We've reached the following point in our exploration:
-{source_entity} -> {source_relation} -> some intermediate entity
+**Objective:** Select knowledge graph paths that can answer the user's 'Question'.
 
-Now we need to select potentially relevant next paths to follow from this intermediate entity.
-Select up to {max_paths} paths that seem relevant or useful for answering the question. Consider that the answer might require exploring multiple paths.
+**Context:**
+* Question: `{question}`
+* Knowledge Graph Paths:
+    ```
+    {paths}
+    ```
+    
+**Task:**
+1.  **Analyze the 'Question':** Identify its main subject, the specific information being sought and any key objects or constraints.
+2.  **Evaluate Paths:** Review each path in the 'Knowledge Graph Paths' list based on how directly its components (Subject Entity, Relation, Object Entity) map to the analyzed components of the 'Question'.
+3.  **Select:** Choose up to `{max_k_paths}` **lines** from the 'Knowledge Graph Paths' list that best fulfill the objective according to the evaluation and prioritization above.
+5.  **CRITICAL: Output Requirements:**
+    * Respond ONLY with the **exact, complete lines** you selected from the 'Knowledge Graph Paths' list.
+    * List one selected path per line in your response.
+    * **Example Output Format (if selecting two paths):**
+        ```
+        PATH_3: EntityA-[relationX]->TargetEntityB
+        PATH_7: EntityC-[relationY]->TargetEntityD
+        ```
+    * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
 
-{path_options}
-
-Only respond with the IDs of the selected paths (e.g., PATH_0, PATH_1, PATH_2). Separate multiple selections with commas.
-Your selection (IDs only, up to {max_paths}):"""
+**Your Selection (Up to {max_k_paths} exact lines from the list above):**"""
     
     ENTITY_SELECTION: ClassVar[str] = """You are a knowledge graph exploration strategist. Given a question and a list of candidate entities discovered, select entities to explore further in the next round.
 
@@ -264,11 +278,11 @@ Provide a comprehensive assessment using the following metrics:
                 "description": "Select relations based on historical context"
             },
             {
-                "name": "intermediate_path_selection",
-                "template": cls.INTERMEDIATE_PATH_SELECTION,
+                "name": "path_selection",
+                "template": cls.PATH_SELECTION,
                 "category": TemplateCategory.RELATION,
-                "required_params": ["question", "source_entity","source_relation", "path_options", "max_paths"],
-                "description": "Select relevant paths from intermediate nodes"
+                "required_params": ["question", "paths", "max_k_paths"],
+                "description": "Select relevant paths"
             },
             # {
             #     "name": "targeted_relation_selection",

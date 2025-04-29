@@ -76,6 +76,28 @@ class ModelInterface:
                 selected_entities.append(ent_id)
         return selected_entities or candidates[:max_entities]
     
+    def select_paths(self, question: str, paths: List[str], max_k_paths: int) -> List[str]:
+        if len(paths) <= max_k_paths:
+            return paths
+        path_dict = {f"PATH_{i}": path for i, path in enumerate(paths)}
+        path_options = "\n".join([f"[{path_id}] {path}" for path_id, path in path_dict.items()])
+        template_name = "path_selection"
+        template_args = {
+            "question": question,
+            "paths": path_options,
+            "max_k_paths": max_k_paths,
+        }
+        selection_output = self.generate_output(template_name, **template_args)
+        if not selection_output:
+            return paths[:max_k_paths]
+        selected_path_ids = self.parser.parse_relations(selection_output, list(path_dict.keys()))
+        selected_paths = []
+        processed_ids = set()
+        for path_id in selected_path_ids:
+            if path_id in path_dict and path_id not in processed_ids:
+                selected_paths.append(path_dict[path_id])
+                processed_ids.add(path_id)
+        return selected_paths or paths[:max_k_paths]
     def check_answerability(self, question: str, start_entities: List[str], 
                           exploration_history: str) -> Dict[str, Any]:
         template_name = "reasoning"
