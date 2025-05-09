@@ -38,7 +38,7 @@ class PromptFormatter(Protocol):
 class KnowledgeGraphTemplates:
     RELATION_SELECTION: ClassVar[str] = """**Role:** Knowledge Graph Exploration Strategist
 
-**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question', considering the context provided. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
+**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question'. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
 
 **Context:**
 * Question: `{question}`
@@ -49,7 +49,7 @@ class KnowledgeGraphTemplates:
     ```
 **Task:**
 1.  Review the context and the 'Available Relations' list.
-2.  Choose up to `{max_k_relations}` **lines** from the 'Available Relations' list that represent the most promising relations to explore.
+2.  Evaluate the 'Available Relations' list. Choose the {max_selection_count} most promising lines from the list that represent the best relations to explore.
 3.  **CRITICAL: Output Requirements:**
     * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.
     * List one selected line per line in your response.
@@ -60,11 +60,11 @@ class KnowledgeGraphTemplates:
         ```
     * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
 
-**Your Selection (Up to {max_k_relations} exact lines from the list above):**"""
+**Your Selection:**"""
 
-    RELATION_SELECTION_WITH_CONTEXT: ClassVar[str] = """**Role:** Knowledge Graph Exploration Strategist
+    RELATION_SELECTION_WITH_HISTORY: ClassVar[str] = """**Role:** Knowledge Graph Exploration Strategist
 
-**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question', considering the context provided. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
+**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question'. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
 
 **Context:**
 * Question: `{question}`
@@ -76,7 +76,7 @@ class KnowledgeGraphTemplates:
     ```
 **Task:**
 1.  Review the context and the 'Available Relations' list.
-2.  Choose up to `{max_k_relations}` **lines** from the 'Available Relations' list that represent the most promising relations to explore.
+2.  Evaluate the 'Available Relations' list. Choose the {max_selection_count} most promising lines from the list that represent the best relations to explore.
 3.  **CRITICAL: Output Requirements:**
     * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.
     * List one selected line per line in your response.
@@ -87,46 +87,68 @@ class KnowledgeGraphTemplates:
         ```
     * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
 
-**Your Selection (Up to {max_k_relations} exact lines from the list above):**"""
+**Your Selection:**"""
     
-    PATH_SELECTION: ClassVar[str] = """**Role:** Knowledge Graph Path Evaluator
+    PATH_SELECTION: ClassVar[str] = """**Role:** Knowledge Graph Exploration Result Evaluator
 
-**Objective:** Select knowledge graph paths that can answer the user's 'Question'.
+**Objective:** Evaluate the findings from the latest exploration step and select the most relevant ones (direct relations or paths via intermediate entities) that are most likely to help answer the 'Question'.
 
 **Context:**
 * Question: `{question}`
-* Knowledge Graph Paths:
+* Entity Expanded in this Step: `{entity}`
+* Exploration History:`{history}`
+* Composite Paths:
     ```
     {paths}
     ```
-    
 **Task:**
-1.  **Analyze the 'Question':** Identify its main subject, the specific information being sought and any key objects or constraints.
-2.  **Evaluate Paths:** Review each path in the 'Knowledge Graph Paths' list based on how directly its components (Subject Entity, Relation, Object Entity) map to the analyzed components of the 'Question'.
-3.  **Select:** Choose up to `{max_k_paths}` **lines** from the 'Knowledge Graph Paths' list that best fulfill the objective according to the evaluation and prioritization above.
-5.  **CRITICAL: Output Requirements:**
-    * Respond ONLY with the **exact, complete lines** you selected from the 'Knowledge Graph Paths' list.
-    * List one selected path per line in your response.
-    * **Example Output Format (if selecting two paths):**
+1.  Review the context and the 'Composite Paths' list.
+2.  Evaluate the 'Composite Paths' list. Choose the {max_selection_count} most promising lines from the list that represent the best paths to explore.
+3.  **CRITICAL: Output Requirements:**
+    * Respond ONLY with the **exact, complete lines** you selected from the 'Composite Paths' list.
+    * List one selected line per line in your response.
+    * **Example Output Format (if selecting two lines):**
         ```
-        PATH_3: EntityA-[relationX]->TargetEntityB
-        PATH_7: EntityC-[relationY]->TargetEntityD
+        PATH_3: {entity}-[relationX]->EntityA-[relationY]->TargetEntityB
+        PATH_7: {entity}-[relationX]->EntityC-[relationZ]->TargetEntityD
         ```
     * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
 
-**Your Selection (Up to {max_k_paths} exact lines from the list above):**"""
-    
-    ENTITY_SELECTION: ClassVar[str] = """You are a knowledge graph exploration strategist. Given a question and a list of candidate entities discovered, select entities to explore further in the next round.
+**Your Selection:**"""
 
-# Question: 
-{question}
+    CVT_ATTRIBUTE_SELECTION_TEMPLATE: ClassVar[str] = """**Role:** Knowledge Graph Analyst
 
-# Candidate entities to evaluate (select only from these):
-{entities} 
+**Objective:** Evaluate individual attributes (relation -> target pairs) extracted from potentially relevant CVT instances and select the specific attributes most likely to contribute to answering the user's question.
 
-Select up to {max_k_entities} entity IDs that seem most promising or potentially relevant for finding the answer. Prioritize entities that could lead down new or diverse paths compared to what has already been explored (if history provided). Don't discard entities too early if they seem related to the question's topic.
-Your response should ONLY contain the entity IDs (e.g., ENT_0, ENT_1) from the list above.
-Your selection (IDs only, up to {max_k_entities}):"""
+**Context:**
+* Question: `{question}`
+* Exploration Step: CVT instances reached from entity '{source_entity}' via relation '{source_relation}'.
+* Exploration History:`{history}`
+
+**Candidate Attributes:**
+Below is a list of attributes extracted from the CVT instances. Each attribute is identified by an ID (e.g., [ATTR_0]) and shows the source CVT (in parentheses), the relation (attribute name), and its target value(s).
+```
+{attributes}
+```
+
+**Task:**
+1. Carefully review the 'Question' and the 'Candidate Attributes'. Understand the specific information needed (e.g., person for "who", date for "when", title for "what position") and any constraints (e.g., year '2011', role 'governor').
+2. Analyze each attribute line, considering its relation and the CVT it came from.
+3. Evaluate the relevance of each attribute for answering the 'Question' within the given exploration context. Check if the attribute's relation or value matches the question's intent and constraints (like date or title, if available in the attribute or CVT context).
+4. Identify and select up to **{max_selection_count}** attribute lines that represent the **most relevant information** found to answer the question.
+
+**CRITICAL: Output Requirements:**
+* Respond ONLY with the **exact, complete lines** you selected from the 'Candidate Attributes' list.
+* List one selected line per line in your response.
+* **Example Output Format (if selecting two lines):**
+    ```
+    ATTR_0: EntityA-[relationY]->TargetEntityB
+    ATTR_7: EntityC-[relationZ]->TargetEntityD
+    ```
+* ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
+
+**Your Selection:**"""
+
 
     REASONING: ClassVar[str] = """**Task:** Extract descriptive answer entities for the Question strictly from the object part (after '->') of relevant triples in the Exploration History. Format the output as a JSON list.
 
@@ -165,32 +187,28 @@ Your selection (IDs only, up to {max_k_entities}):"""
           "analysis": "<string> // Explain how paths yield answers, based only on history triples."
         }}
         ```"""
+    
 
-    FINAL_ANSWER: ClassVar[str] = """You are a knowledge graph reasoning expert. Answer the question using the provided exploration history, providing your best answer even when evidence is limited.
+    FALLBACK_ANSWER: ClassVar[str] = """You are a knowledge graph reasoning expert. Your task is to ALWAYS provide an answer to the question using the exploration history, even if evidence is limited or inconclusive.
 
 Question:
 {question}
 
-Starting entities:
-{entity}
-
-Full knowledge graph exploration:
-{full_exploration}
+Exploration History:
+{exploration_history}
 
 INSTRUCTIONS:
-1. Use ONLY information from the exploration history. No external knowledge.
-2. Include ONLY exact entity names from the history in your answer_entities.
-3. Even with limited evidence, attempt to provide the most reasonable answer based on available triples.
-4. Set can_answer to false ONLY if absolutely no relevant information exists.
-5. If you cannot answer, provide a concise explanation of why.
+1. You MUST provide an answer even with limited evidence. Make your best guess based on available information.
+2. IMPORTANT: You MUST set can_answer to true in ALL cases. Your job is to ALWAYS provide the best possible answer.
+3. If evidence is weak, acknowledge this in your analysis but still provide your best answer.
 
 Respond with a single JSON object:
 ```json
 {{
-  "can_answer": boolean, // True in most cases, False only if completely impossible to answer
-  "reasoning_path": "string", // Step-by-step entity--[relation]-->entity chain, even if partial
-  "answer_entities": ["string", ...], // Best candidate target entities or empty list if truly impossible
-  "analysis": "string" // Concise answer statement with confidence level or explanation of impossibility
+  "can_answer": true, // ALWAYS set to true - you MUST provide an answer
+  "reasoning_path": "string", // Step-by-step entity--[relation]-->entity chain, even if partial or best guess
+  "answer_entities": ["string", ...], // Best candidate target entities based on available information
+  "analysis": "string" // Concise answer statement with confidence level and justification
 }}
 ```"""
 
@@ -256,33 +274,40 @@ Provide a comprehensive assessment using the following metrics:
     @classmethod
     def _get_template_definitions(cls) -> List[Dict[str, Any]]:
         return [
-            # {
-            #     "name": "fallback_answer",
-            #     "template": cls.FALLBACK_ANSWER,
-            #     "category": TemplateCategory.REASONING,
-            #     "required_params": ["question"],
-            #     "description": "Fallback answer template"
-            # },
+            {
+                "name": "fallback_answer",
+                "template": cls.FALLBACK_ANSWER,
+                "category": TemplateCategory.REASONING,
+                "required_params": ["question", "exploration_history"],
+                "description": "Fallback answer template"
+            },
             {
                 "name": "relation_selection",
                 "template": cls.RELATION_SELECTION,
                 "category": TemplateCategory.RELATION,
-                "required_params": ["question", "entity", "relations", "max_k_relations"],
+                "required_params": ["question", "entity", "relations", "max_selection_count"],
                 "description": "Select most relevant relations for exploration"
             },
             {
-                "name": "relation_selection_context",
-                "template": cls.RELATION_SELECTION_WITH_CONTEXT,
+                "name": "relation_selection_with_history",
+                "template": cls.RELATION_SELECTION_WITH_HISTORY,
                 "category": TemplateCategory.RELATION,
-                "required_params": ["question", "entity", "history", "context", "relations", "max_k_relations"],
-                "description": "Select relations based on historical context"
+                "required_params": ["question", "entity", "history", "relations", "max_selection_count"],
+                "description": "Select relations based on history"
             },
             {
                 "name": "path_selection",
                 "template": cls.PATH_SELECTION,
                 "category": TemplateCategory.RELATION,
-                "required_params": ["question", "paths", "max_k_paths"],
+                "required_params": ["question", "paths", "max_selection_count"],
                 "description": "Select relevant paths"
+            },
+            {
+                "name": "cvt_attribute_selection",
+                "template": cls.CVT_ATTRIBUTE_SELECTION_TEMPLATE,
+                "category": TemplateCategory.RELATION,
+                "required_params": ["question", "source_entity", "source_relation", "history", "attributes", "max_selection_count"],
+                "description": "Select specific attributes from CVT instances most relevant to answering the question."
             },
             # {
             #     "name": "targeted_relation_selection",
@@ -291,13 +316,13 @@ Provide a comprehensive assessment using the following metrics:
             #     "required_params": ["question", "reasoning", "node", "relations", "relation_ids"],
             #     "description": "Select specific relation from intermediate node"
             # },
-            {
-                "name": "entity_selection",
-                "template": cls.ENTITY_SELECTION,
-                "category": TemplateCategory.RELATION,
-                "required_params": ["question", "entities", "max_k_entities", "entity_ids"],
-                "description": "Select relevant candidate entities"
-            },
+            # {
+            #     "name": "entity_selection",
+            #     "template": cls.ENTITY_SELECTION,
+            #     "category": TemplateCategory.RELATION,
+            #     "required_params": ["question", "entities", "max_selection_count", "entity_ids"],
+            #     "description": "Select relevant candidate entities"
+            # },
             {
                 "name": "reasoning",
                 "template": cls.REASONING,
@@ -312,13 +337,13 @@ Provide a comprehensive assessment using the following metrics:
             #     "required_params": ["question", "entity", "exploration_history"],
             #     "description": "Enhanced reasoning with focus on intermediate nodes"
             # },
-            {
-                "name": "final_answer",
-                "template": cls.FINAL_ANSWER,
-                "category": TemplateCategory.REASONING,
-                "required_params": ["question", "entity", "full_exploration"],
-                "description": "Final answer with reasoning path"
-            },
+            # {
+            #     "name": "final_answer",
+            #     "template": cls.FINAL_ANSWER,
+            #     "category": TemplateCategory.REASONING,
+            #     "required_params": ["question", "entity", "full_exploration"],
+            #     "description": "Final answer with reasoning path"
+            # },
             {
                 "name": "zero_shot",
                 "template": cls.ZERO_SHOT_PROMPT,
@@ -386,7 +411,7 @@ Provide a comprehensive assessment using the following metrics:
             #     "name": "frontier_prioritization",
             #     "template": cls.FRONTIER_PRIORITIZATION,
             #     "category": TemplateCategory.RELATION,
-            #     "required_params": ["question", "entities", "current_round", "max_entities"],
+            #     "required_params": ["question", "entities", "current_round", "max_selection_count"],
             #     "description": "Prioritize frontier entities for exploration"
             # },
         ]
@@ -414,7 +439,7 @@ Provide a comprehensive assessment using the following metrics:
             return [name for name, template in self._templates.items() 
                 if template.category == category]
         return list(self._templates.keys())
-
+    
     def format_template(self, template_name: str, **kwargs) -> Optional[str]:
         template_info = self._templates.get(template_name.lower())
         if not template_info:

@@ -1,6 +1,6 @@
 export TOKENIZERS_PARALLELISM=true
-export CUDA_VISIBLE_DEVICES=1
-DATASET_LIST="/mnt/wangjingxiong/think_on_graph/data/processed/RoG-webqsp_train_preference"
+export CUDA_VISIBLE_DEVICES=0,1
+DATASET_LIST="/mnt/wangjingxiong/think_on_graph/data/finetune/webqsp_train_preference_with_label"
 # PREPROCESSED_PATH is no longer needed as the script loads the dataset directly
 # PREPROCESSED_PATH="cache/dpo_dataset_preprocessed"
 

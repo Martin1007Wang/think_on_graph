@@ -73,4 +73,4 @@ def clean_jsonl_file(input_path: str, output_path: str = None, id_file: str = No
     return removed_count
 
 if __name__ == "__main__":
-    clean_jsonl_file("/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v5/RoG-webqsp/GCR-lora-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk5/predictions.jsonl", "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v5/RoG-webqsp/GCR-lora-Llama-3.1-8B-Instruct/test/iterative-rounds3-topk5/predictions.jsonl")
+    clean_jsonl_file("/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v8/RoG-webqsp/GCR-lora-sft_v3_Llama-3.1-8B-Instruct/deepseek-v3/iterative-rounds3-topk5/predictions.jsonl")

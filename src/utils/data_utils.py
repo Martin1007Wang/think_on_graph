@@ -7,6 +7,7 @@ class EntityRelation:
     """存储实体关系信息"""
     relation: str
     targets: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class EntityExpansion:
@@ -20,6 +21,7 @@ class ExplorationRound:
     round_num: int
     expansions: List[EntityExpansion] = field(default_factory=list)
     answer_found: Optional[Dict[str, Any]] = None
+    exceeded_history_limit: bool = False
 
 @dataclass
 class Path:

@@ -1,7 +1,7 @@
 from .chatgpt import ChatGPT
 from .base_language_model import BaseLanguageModel
 from .base_hf_causal_model import HfCausalModel
-from .silicon_flow import SiliconFlowLLM
+from .deepseek import SiliconFlowLLM
 from .graph_constrained_decoding_model import GraphConstrainedDecodingModel
 
 registed_language_models = {

@@ -1,10 +1,10 @@
 export TOKENIZERS_PARALLELISM=true
-export CUDA_VISIBLE_DEVICES=1
-DATASET_LIST="/mnt/wangjingxiong/think_on_graph/data/processed/RoG-webqsp_train_sft_dataset_with_label"
-PREPROCESSED_PATH="cache/sft_dataset_preprocessed"
+export CUDA_VISIBLE_DEVICES=0,1
+DATASET_LIST="/mnt/wangjingxiong/think_on_graph/data/processed/relation_sft_dataset"
+PREPROCESSED_PATH="cache/relation_sft_dataset_preprocessed"
 
 # Lora 配置 - 优化速度
-BATCH_SIZE=16
+BATCH_SIZE=32
 USE_PEFT=True
 EPOCH=20
 GRADIENT_CHECKPOINTING=True
@@ -31,12 +31,12 @@ RESPONSE_TEMPLATE="<|start_header_id|>assistant<|end_header_id|>"
 
 ATTN_IMP=flash_attention_2
 
-SAVE_PATH=sft_models_v2/GCR-lora-$(basename "$MODEL_PATH")
+SAVE_PATH=sft_models_v3/GCR-lora-$(basename "$MODEL_PATH")
 SAVE_NAME=$(basename "$SAVE_PATH")
 
 MAX_PROMPT_LENGTH=256
 
-accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_sft_2.py \
+accelerate launch --config_file ${CONFIG} workflow/finetune_kg_specialized_llm_sft_3.py \
     --data_path_list ${DATASET_LIST}  \
     --preprocessed_data_path ${PREPROCESSED_PATH} \
     --use_cache true \

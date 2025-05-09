@@ -1,27 +1,54 @@
 {
-    "id": "WebQTest-20",
-    "question": "what did st augustine do",
-    "prediction": [
-        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Physician\n# Answer:\nPhysician",
-        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Physician\n# Answer:\nPhysician",
-        "# Reasoning Path:\nAugustine of Hippo -> base.saints.saint.venerated_in -> Eastern Christianity -> religion.religion.is_part_of -> Christianity\n# Answer:\nChristianity",
-        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Writer\n# Answer:\nWriter",
-        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Philosopher\n# Answer:\nPhilosopher",
-        "# Reasoning Path:\nAugustine of Hippo -> common.topic.notable_types -> Religious Leader\n# Answer:\nReligious Leader",
-        "# Reasoning Path:\nAugustine of Hippo -> book.author.works_written -> The works of Saint Augustine\n# Answer:\nThe works of Saint Augustine",
-        "# Reasoning Path:\nAugustine of Hippo -> base.saints.saint.venerated_in -> Oriental Orthodoxy -> religion.religion.is_part_of -> Christianity\n# Answer:\nChristianity",
-        "# Reasoning Path:\nAugustine of Hippo -> common.topic.notable_types -> Religious Leader\n# Answer:\nReligious Leader",
-        "# Reasoning Path:\nAugustine of Hippo -> people.person.profession -> Physician\n# Answer:\nPhysician"
-    ],
-    "ground_truth": [
-        "Writer",
-        "Physician",
-        "Philosopher"
-    ],
-    "ground_truth_paths": [
-        "Augustine of Hippo -> people.person.profession -> Writer",
-        "Augustine of Hippo -> people.person.profession -> Physician",
-        "Augustine of Hippo -> people.person.profession -> Philosopher"
-    ],
-    "input": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 26 Jul 2024\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nReasoning path is a sequence of triples in the KG that connects the topic entities in the question to answer entities. Given a question, please generate some reasoning paths in the KG starting from the topic entities to answer the question.\n                        # Question: \n                        what did st augustine do?\n                        # Topic entities: \n                        Augustine of Hippo<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    "prompt": "**Role:** Knowledge Graph Exploration Strategist\n\n**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question'. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.\n\n**Context:**\n* Question: `what is the name of the broncos mascot`\n* Current Entity: `Denver Broncos`\n* Available Relations (from Current Entity):\n    ```\n        [REL_0] american_football.football_team.away_games\n    [REL_1] american_football.football_team.conference\n    [REL_2] american_football.football_team.division\n    [REL_3] american_football.football_team.historical_coaching_staff\n    [REL_4] american_football.football_team.home_games\n    [REL_5] award.award_nominee.award_nominations\n    [REL_6] award.award_winner.awards_won\n    [REL_7] base.ontologies.ontology_instance.equivalent_instances\n    [REL_8] business.employer.employees\n    [REL_9] common.topic.article\n    [REL_10] common.topic.image\n    [REL_11] common.topic.notable_for\n    [REL_12] common.topic.notable_types\n    [REL_13] common.topic.webpage\n    [REL_14] film.person_or_entity_appearing_in_film.films\n    [REL_15] freebase.valuenotation.has_value\n    [REL_16] sports.professional_sports_team.draft_picks\n    [REL_17] sports.sports_team.arena_stadium\n    [REL_18] sports.sports_team.championships\n    [REL_19] sports.sports_team.coaches\n    [REL_20] sports.sports_team.colors\n    [REL_21] sports.sports_team.league\n    [REL_22] sports.sports_team.location\n    [REL_23] sports.sports_team.season_record\n    [REL_24] sports.sports_team.sport\n    [REL_25] sports.sports_team.team_mascot\n    [REL_26] sports.sports_team.venue\n    ```\n**Task:**\n1.  Review the context and the 'Available Relations' list.\n2.  Evaluate the 'Available Relations' list. Choose the 5 most promising lines from the list that represent the best relations to explore.\n3.  **CRITICAL: Output Requirements:**\n    * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.\n    * List one selected line per line in your response.\n    * **Example Output Format (if selecting two lines):**\n        ```\n        [REL_9] people.person.profession\n        [REL_12] music.artist.genre\n        ```\n    * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.\n\n**Your Selection:**",
+    "chosen": "[REL_25] sports.sports_team.team_mascot",
+    "rejected": "[REL_18] sports.sports_team.championships\n[REL_1] american_football.football_team.conference\n[REL_20] sports.sports_team.colors\n[REL_2] american_football.football_team.division\n[REL_4] american_football.football_team.home_games",
+    "metadata": {
+        "original_id": "WebQTrn-3775",
+        "dpo_id": "WebQTrn-3775_pathstep0_entity_Denver_Broncos_hist0",
+        "hop_in_path": 0,
+        "current_source_entity": "Denver Broncos",
+        "current_history_key_for_lookup": "",
+        "current_history_for_prompt": [],
+        "prompt_available_relations": [
+            "american_football.football_team.away_games",
+            "american_football.football_team.conference",
+            "american_football.football_team.division",
+            "american_football.football_team.historical_coaching_staff",
+            "american_football.football_team.home_games",
+            "award.award_nominee.award_nominations",
+            "award.award_winner.awards_won",
+            "base.ontologies.ontology_instance.equivalent_instances",
+            "business.employer.employees",
+            "common.topic.article",
+            "common.topic.image",
+            "common.topic.notable_for",
+            "common.topic.notable_types",
+            "common.topic.webpage",
+            "film.person_or_entity_appearing_in_film.films",
+            "freebase.valuenotation.has_value",
+            "sports.professional_sports_team.draft_picks",
+            "sports.sports_team.arena_stadium",
+            "sports.sports_team.championships",
+            "sports.sports_team.coaches",
+            "sports.sports_team.colors",
+            "sports.sports_team.league",
+            "sports.sports_team.location",
+            "sports.sports_team.season_record",
+            "sports.sports_team.sport",
+            "sports.sports_team.team_mascot",
+            "sports.sports_team.venue"
+        ],
+        "step_chosen_relations": [
+            "sports.sports_team.team_mascot"
+        ],
+        "step_negative_relations": [
+            "american_football.football_team.conference",
+            "american_football.football_team.division",
+            "american_football.football_team.home_games",
+            "sports.sports_team.championships",
+            "sports.sports_team.colors"
+        ],
+        "original_q_entity": "Denver Broncos",
+        "original_a_entity": "Miles"
+    }
 }
