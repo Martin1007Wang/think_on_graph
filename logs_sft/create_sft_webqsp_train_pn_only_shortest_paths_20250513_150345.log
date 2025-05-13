@@ -1,0 +1,13 @@
+2025-05-13 15:03:53,124 - __main__ - INFO - Loading path dataset from: /mnt/wangjingxiong/think_on_graph/data/processed/webqsp_train/path_data.json
+2025-05-13 15:03:53,243 - __main__ - INFO - Loaded 6289 path items from input.
+2025-05-13 15:03:53,243 - __main__ - INFO - Starting SFT example generation with config: ProcessingConfig(max_selection_count=3, enable_relation_sampling=False, relation_sampling_threshold=20, num_distractors_to_sample=7, candidate_strategy=<CandidateStrategy.PN_ONLY: 'pn_only'>, positive_source_field=<PositiveSource.SHORTEST_PATHS: 'shortest_paths'>)
+2025-05-13 15:03:53,243 - src.knowledge_graph - INFO - KnowledgeGraph will use device: cuda for SentenceTransformer models when loaded.
+2025-05-13 15:03:53,243 - src.knowledge_graph - INFO - FAISS library is available and will be used for efficient entity search.
+2025-05-13 15:03:53,254 - src.knowledge_graph - INFO - Successfully connected to Neo4j at bolt://localhost:7687
+2025-05-13 15:03:53,257 - src.knowledge_graph - INFO - Database indexes ensured.
+Processing path items to SFT examples:   0%|          | 0/6289 [00:00<?, ?it/s]Processing path items to SFT examples:  10%|▉         | 617/6289 [00:00<00:00, 6126.81it/s]Processing path items to SFT examples:  22%|██▏       | 1381/6289 [00:00<00:00, 7010.44it/s]Processing path items to SFT examples:  41%|████▏     | 2607/6289 [00:00<00:00, 9370.13it/s]Processing path items to SFT examples:  56%|█████▋    | 3544/6289 [00:00<00:00, 9062.85it/s]Processing path items to SFT examples:  75%|███████▍  | 4687/6289 [00:00<00:00, 9896.05it/s]Processing path items to SFT examples:  90%|█████████ | 5680/6289 [00:00<00:00, 9217.86it/s]Processing path items to SFT examples: 100%|██████████| 6289/6289 [00:00<00:00, 8939.88it/s]
+2025-05-13 15:03:53,962 - src.knowledge_graph - INFO - Closing Neo4j driver connection.
+2025-05-13 15:03:53,962 - __main__ - INFO - SFT example generation complete. Total SFT examples: 20653
+2025-05-13 15:03:54,187 - __main__ - INFO - SFT instruction dataset saved to JSON Lines: /mnt/wangjingxiong/think_on_graph/data/finetune_sft/webqsp_train_sft_instruct_cand_pn_only_pos_shortest_paths/sft_data.jsonl
+Saving the dataset (0/1 shards):   0%|          | 0/20653 [00:00<?, ? examples/s]Saving the dataset (1/1 shards): 100%|██████████| 20653/20653 [00:00<00:00, 926163.10 examples/s]Saving the dataset (1/1 shards): 100%|██████████| 20653/20653 [00:00<00:00, 920827.02 examples/s]
+2025-05-13 15:03:54,447 - __main__ - INFO - SFT instruction dataset saved to Hugging Face disk format: /mnt/wangjingxiong/think_on_graph/data/finetune_sft/webqsp_train_sft_instruct_cand_pn_only_pos_shortest_paths

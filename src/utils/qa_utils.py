@@ -4,6 +4,7 @@ import re
 import string
 from sklearn.metrics import precision_score
 from statistics import mean
+import os
 
 def normalize(s: str) -> str:
     """Lower text and remove punctuation, articles and extra whitespace."""
@@ -476,13 +477,46 @@ def eval_path_result(predict_file, cal_f1=True, topk=-1):
     with open(eval_result_path, "w") as f:
         f.write(result_str)
 
-def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
-    eval_name = (
-        f"detailed_eval_result_top_{topk}.jsonl"
-        if topk > 0
-        else "detailed_eval_result.jsonl"
-    )
-    detailed_eval_file = predict_file.replace("predictions.jsonl", eval_name)
+def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1, output_path=None):
+    """
+    Evaluate path results with answer extraction.
+    
+    Args:
+        predict_file: Path to the prediction JSONL file.
+        cal_f1: Whether to calculate F1 score.
+        topk: Top-k predictions to consider.
+        output_path: Optional path to save evaluation results.
+            If None, results will be saved in the same directory as predict_file.
+    
+    Returns:
+        A dictionary with evaluation metrics.
+    """
+    # Generate evaluation filenames based on input file
+    if output_path is None:
+        eval_name = (
+            f"detailed_eval_result_top_{topk}.jsonl"
+            if topk > 0
+            else "detailed_eval_result.jsonl"
+        )
+        detailed_eval_file = predict_file.replace("predictions.jsonl", eval_name)
+        
+        result_name = f"eval_result_top_{topk}.txt" if topk > 0 else "eval_result.txt"
+        eval_result_path = predict_file.replace("predictions.jsonl", result_name)
+    else:
+        # If output_path is provided, use it as base for output files
+        output_dir = os.path.dirname(output_path)
+        output_base = os.path.splitext(os.path.basename(output_path))[0]
+        
+        eval_name = (
+            f"detailed_eval_result_top_{topk}.jsonl"
+            if topk > 0
+            else "detailed_eval_result.jsonl"
+        )
+        detailed_eval_file = os.path.join(output_dir, eval_name)
+        
+        result_name = f"eval_result_top_{topk}.txt" if topk > 0 else "eval_result.txt"
+        eval_result_path = os.path.join(output_dir, result_name)
+    
     # Load results
     acc_list = []
     hit_list = []
@@ -559,22 +593,38 @@ def eval_path_result_w_ans(predict_file, cal_f1=True, topk=-1):
                     + "\n"
                 )
 
+    # Calculate and format results
+    metrics = {}
     if len(f1_list) > 0:
+        metrics.update({
+            "acc": sum(acc_list) / len(acc_list),
+            "hit": sum(hit_list) / len(hit_list),
+            "f1": sum(f1_list) / len(f1_list),
+            "precision": sum(precission_list) / len(precission_list),
+            "recall": sum(recall_list) / len(recall_list)
+        })
+        
         result_str = (
-            f"Accuracy: {sum(acc_list) * 100 / len(acc_list):.2f}% "
-            f"Hit: {sum(hit_list) * 100 / len(hit_list):.2f}% "
-            f"F1: {sum(f1_list) * 100 / len(f1_list):.2f}% "
-            f"Precision: {sum(precission_list) * 100 / len(precission_list):.2f}% "
-            f"Recall: {sum(recall_list) * 100 / len(recall_list):.2f}%"
+            f"Accuracy: {metrics['acc'] * 100:.2f}% "
+            f"Hit: {metrics['hit'] * 100:.2f}% "
+            f"F1: {metrics['f1'] * 100:.2f}% "
+            f"Precision: {metrics['precision'] * 100:.2f}% "
+            f"Recall: {metrics['recall'] * 100:.2f}%"
         )
     else:
+        metrics.update({
+            "acc": sum(acc_list) / len(acc_list),
+            "hit": sum(hit_list) / len(hit_list)
+        })
+        
         result_str = (
-            f"Accuracy: {sum(acc_list) * 100 / len(acc_list):.2f}% "
-            f"Hit: {sum(hit_list) * 100 / len(hit_list):.2f}%"
+            f"Accuracy: {metrics['acc'] * 100:.2f}% "
+            f"Hit: {metrics['hit'] * 100:.2f}%"
         )
+    
     print(result_str)
     
-    result_name = f"eval_result_top_{topk}.txt" if topk > 0 else "eval_result.txt"
-    eval_result_path = predict_file.replace("predictions.jsonl", result_name)
     with open(eval_result_path, "w") as f:
         f.write(result_str)
+        
+    return metrics

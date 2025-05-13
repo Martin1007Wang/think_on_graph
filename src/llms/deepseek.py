@@ -14,12 +14,7 @@ os.environ['TIKTOKEN_CACHE_DIR'] = './tmp'
 logger = logging.getLogger(__name__)
 
 def get_token_limit(model='deepseek-chat'):
-    """Returns the token limitation of provided model"""
-    
-    if model in ['deepseek-chat']:
-        num_tokens_limit = 32000
-    else:
-        raise NotImplementedError(f"""get_token_limit() is not implemented for model {model}.""")
+    num_tokens_limit = 32000
     return num_tokens_limit
 
 class SiliconFlowLLM(BaseLanguageModel):

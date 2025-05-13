@@ -1,10 +1,25 @@
 #!/bin/bash
+PID_TO_MONITOR=2708829 # 您想要监控的进程ID
+
+echo "开始监控进程 PID: ${PID_TO_MONITOR}..."
+
+# 循环直到找不到该进程
+# 'kill -0 PID' 会检查进程是否存在，如果存在则返回0，否则返回非0
+# 我们将标准输出和标准错误重定向到 /dev/null 以避免不必要的输出
+while kill -0 ${PID_TO_MONITOR} >/dev/null 2>&1; do
+  echo "进程 ${PID_TO_MONITOR} 仍在运行。等待10秒后再次检查..."
+  sleep 10 # 每10秒检查一次，您可以根据需要调整这个间隔
+done
+
+echo "进程 ${PID_TO_MONITOR} 已结束。现在开始运行主脚本..."
+echo "-----------------------------------------------------"
 
 # 环境设置
 export HF_ENDPOINT=https://hf-mirror.com
 export CUDA_VISIBLE_DEVICES=0
 # DeepSeek API密钥设置，请替换为您的密钥
 export DEEPSEEK_API_KEY="sk-9ebd54eae9f749ee825ed1c331270eb6"
+# export DEEPSEEK_API_KEY="e058d4fa-4202-4669-b543-b7350289731c"
 
 # 数据参数
 DATA_PATH=rmanluo
@@ -12,17 +27,17 @@ DATA_NAME="RoG-webqsp"
 SPLIT="test"
 
 # 输出路径
-PREDICT_PATH="results/IterativeReasoning_v10"
+PREDICT_PATH="results/IterativeReasoning_v11"
 
 # 探索模型参数 - 探索阶段仍使用原模型
-# EXPLORE_MODEL_NAME="GCR-lora-dpo_v3_with_label-Llama-3.1-8B-Instruct"
-# EXPLORE_MODEL_PATH="/mnt/wangjingxiong/think_on_graph/dpo_models_v3/GCR-lora-dpo_v3_with_label-Llama-3.1-8B-Instruct/merged_model"
+EXPLORE_MODEL_NAME="GCR-lora-dpo_v4_with_label-Llama-3.1-8B-Instruct"
+EXPLORE_MODEL_PATH="/mnt/wangjingxiong/think_on_graph/dpo_models_v4/GCR-lora-dpo_v4_webqsp_pn_kg_supplement_shortest_paths/0e9e39f249a16976918f6564b8830bc894c89659_epoch2_sigmoid_beta0.1_lora_r8/merged_model"
 
 # EXPLORE_MODEL_NAME="GCR-lora-sft_v3_with_label-Llama-3.1-8B-Instruct"
 # EXPLORE_MODEL_PATH="/mnt/wangjingxiong/think_on_graph/sft_models_v3/GCR-lora-sft_v3_with_label-Llama-3.1-8B-Instruct/merged_model"
 
-EXPLORE_MODEL_NAME="Llama-3.1-8B-Instruct"
-EXPLORE_MODEL_PATH="/mnt/data/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659"
+# EXPLORE_MODEL_NAME="Llama-3.1-8B-Instruct"
+# EXPLORE_MODEL_PATH="/mnt/data/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659"
 
 # 预测模型参数 - 使用DeepSeek Chat API
 PREDICT_MODEL_NAME="deepseek-chat"

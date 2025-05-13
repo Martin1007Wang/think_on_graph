@@ -9,6 +9,8 @@ save_models
 dpo_models/
 dpo_models_v2/
 dpo_models_v3/
+dpo_models_v4/
+sft_models_v4/
 sft_models/
 sft_models_v2/
 sft_models_v3/
