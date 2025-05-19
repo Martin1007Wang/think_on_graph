@@ -396,8 +396,8 @@ if __name__ == "__main__":
     # --- Programmatic Override for target_ids ---
     # This line now sets args.target_ids to a list.
     # The main() function has been updated to handle this case.
-    args.target_ids = ["WebQTest-26", "WebQTest-1259", "WebQTest-264", "WebQTest-688", "WebQTest-189","WebQTest-179","WebQTest-71","WebQTest-278","WebQTest-751","WebQTest-202"]
-    logging.info(f"Programmatically overriding target_ids to: {args.target_ids}")
+    # args.target_ids = ["WebQTest-26", "WebQTest-1259", "WebQTest-264", "WebQTest-688", "WebQTest-189","WebQTest-179","WebQTest-71","WebQTest-278","WebQTest-751","WebQTest-202"]
+    # logging.info(f"Programmatically overriding target_ids to: {args.target_ids}")
 
 
     main(args)

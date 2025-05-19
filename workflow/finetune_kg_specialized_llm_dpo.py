@@ -43,8 +43,6 @@ def is_bf16_supported():
         return False
 
 class Constants:
-    PATH_START_TOKEN = "<PATH>"
-    PATH_END_TOKEN = "</PATH>"
     HF_TOKEN = os.getenv("HF_TOKEN")
 
 @dataclass
@@ -134,32 +132,16 @@ def train():
         use_fast=True,
         token=Constants.HF_TOKEN
     )
-    tokenizer.padding_side = "right"
-    
-    # Add special tokens if needed
     special_tokens_dict = {}
     added_tokens = 0
-    
-    if tokenizer.pad_token is None:
-        special_tokens_dict["pad_token"] = "<PAD>"
-        added_tokens += 1
-        
-    current_special_tokens = set(tokenizer.all_special_tokens)
-    additional_tokens = []
-    
-    if Constants.PATH_START_TOKEN not in current_special_tokens:
-        additional_tokens.append(Constants.PATH_START_TOKEN)
-    if Constants.PATH_END_TOKEN not in current_special_tokens:
-        additional_tokens.append(Constants.PATH_END_TOKEN)
-        
-    if additional_tokens:
-        special_tokens_dict['additional_special_tokens'] = additional_tokens
-        added_tokens += len(additional_tokens)
-        
-    if added_tokens > 0:
-        tokenizer.add_special_tokens(special_tokens_dict)
 
-    # Model setup
+    if tokenizer.pad_token is None:
+        special_tokens_dict["pad_token"] = "<PAD>" # 或者 "[PAD]" 等其他常用表示
+        added_tokens += 1
+
+    if added_tokens > 0:
+        num_added_toks = tokenizer.add_special_tokens(special_tokens_dict)
+
     model_kwargs = {
         "trust_remote_code": True,
         "token": Constants.HF_TOKEN,

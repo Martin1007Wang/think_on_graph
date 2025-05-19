@@ -1,50 +1,15 @@
 {
-    "prompt": [
-        {
-            "role": "user",
-            "content": "**Role:** Knowledge Graph Exploration Strategist\n\n**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question'. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.\n\n**Context:**\n* Question: `what country is the grand bahama island in`\n* Current Entity: `Grand Bahama`\n* Available Relations (from Current Entity):\n    ```\n          [REL_0] common.topic.webpage\n      [REL_1] location.location.containedby\n      [REL_2] location.location.contains\n      [REL_3] location.location.geolocation\n      [REL_4] location.location.nearby_airports\n      [REL_5] location.location.people_born_here\n    ```\n**Task:**\n1.  Review the context and the 'Available Relations' list.\n2.  Evaluate the 'Available Relations' list. Choose the 5 most promising lines from the list that represent the best relations to explore.\n3.  **CRITICAL: Output Requirements:**\n    * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.\n    * List one selected line per line in your response.\n    * **Example Output Format (if selecting two lines):**\n        ```\n        [REL_9] people.person.profession\n        [REL_12] music.artist.genre\n        ```\n    * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.\n\n**Your Selection:**"
-        }
-    ],
-    "chosen": [
-        {
-            "role": "assistant",
-            "content": "[REL_1] location.location.containedby"
-        }
-    ],
-    "rejected": [
-        {
-            "role": "assistant",
-            "content": "[REL_0] common.topic.webpage\n[REL_2] location.location.contains\n[REL_3] location.location.geolocation\n[REL_4] location.location.nearby_airports\n[REL_5] location.location.people_born_here"
-        }
-    ],
-    "metadata": {
-        "original_id": "WebQTrn-3",
-        "dpo_id": "WebQTrn-3_pathstep0_entity_Grand_Bahama_hist0",
-        "hop_in_path": 0,
-        "current_source_entity": "Grand Bahama",
-        "current_history_key_for_lookup": "",
-        "current_history_for_prompt_summary": [],
-        "prompt_available_relations": [
-            "common.topic.webpage",
-            "location.location.containedby",
-            "location.location.contains",
-            "location.location.geolocation",
-            "location.location.nearby_airports",
-            "location.location.people_born_here"
-        ],
-        "step_gold_chosen_relations": [
-            "location.location.containedby"
-        ],
-        "step_gold_negative_relations": [
-            "common.topic.webpage",
-            "location.location.contains",
-            "location.location.geolocation",
-            "location.location.nearby_airports",
-            "location.location.people_born_here"
-        ],
-        "config_candidate_strategy": "pn_only",
-        "config_positive_source_field": "shortest_paths",
-        "original_q_entity": "Grand Bahama",
-        "original_a_entity": "Bahamas"
-    }
+    "prompt": "Based on the following information:\n- Question: what is the name of justin bieber brother\n- Current Entity: Justin Bieber\n\nPlease generate up to 5 relations from the Current Entity that are most relevant to answering the Question.\n\nYour Generated Relations (one relation name per line):",
+    "chosen": "people.person.parents\npeople.person.sibling_s",
+    "rejected": "base.popstra.celebrity.breakup\nbase.popstra.celebrity.friendship\ncelebrities.celebrity.celebrity_friends\nmusic.artist.label\nmusic.featured_artist.albums",
+}
+{
+    "prompt": "Based on the following information:\n- Question: what is the name of justin bieber brother\n- Current Entity: Jeremy Bieber\n- Exploration History:\nStep 1: From 'Justin Bieber' explored relation 'people.person.parents', leading to 'Jeremy Bieber'.\n\nPlease generate up to 5 relations from the Current Entity that are most relevant to answering the Question, considering the Exploration History provided.\n\nYour Generated Relations (one relation name per line):",
+    "chosen": "people.person.children",
+    "rejected": "common.topic.notable_for\npeople.person.gender\npeople.person.nationality\npeople.person.place_of_birth\npeople.person.spouse_s",
+}
+{
+    "prompt": "Based on the following information:\n- Question: what character did natalie portman play in star wars\n- Current Entity: Natalie Portman\n\nPlease generate up to 5 relations from the Current Entity that are most relevant to answering the Question.\n\nYour Generated Relations (one relation name per line):",
+    "chosen": "film.actor.film",
+    "rejected": "film.director.film\nfilm.person_or_entity_appearing_in_film.films\ntv.tv_actor.guest_roles",
 }

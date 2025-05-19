@@ -49,7 +49,7 @@ def make_prediction(data, args, processed_list, input_builder, model):
         }
     input = input_builder.process_input(data)
     input = model.prepare_model_prompt(input)
-    if "gcr" in args.model_name:
+    if "gcr" in args.predict_model_name:
         entity_list = set()
         predicted_paths = data['predicted_paths']
         for p in predicted_paths:
@@ -190,7 +190,7 @@ def main(args, LLM):
     prediction_suffix = args.prefix + prediction_suffix
     
     output_dir = os.path.join(
-        args.predict_path, args.d, args.model_name, args.split, prediction_suffix
+        args.predict_path, args.d, args.predict_model_name, args.split, prediction_suffix
     )
     print("Save results to: ", output_dir)
     # Predict
@@ -271,7 +271,7 @@ if __name__ == "__main__":
         "--add_path", type=lambda x: (str(x).lower() == "true"), default=False
     )
     argparser.add_argument(
-        "--model_name", type=str, help="model_name for save results", default="gpt2"
+        "--predict_model_name", type=str, help="predict_model_name for save results", default="gpt2"
     )
     argparser.add_argument(
         "--force", action="store_true", help="force to overwrite the results"
@@ -303,7 +303,7 @@ if __name__ == "__main__":
     )
     args, _ = argparser.parse_known_args()
 
-    LLM = get_registed_model(args.model_name)
+    LLM = get_registed_model(args.predict_model_name)
     LLM.add_args(argparser)
 
     args = argparser.parse_args()

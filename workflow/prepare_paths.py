@@ -209,10 +209,7 @@ def prepare_paths(args: argparse.Namespace):
         kg = KnowledgeGraph(args.neo4j_uri, args.neo4j_user, args.neo4j_password)
         
         kg.initialize_embeddings(
-            dataset_name_for_caching=args.dataset_name,
-            split_name_for_caching=args.split,
             model_name=args.model_name,
-            force_recompute=args.force_recompute_embeddings, 
             embedding_encode_batch_size=args.embedding_encode_batch_size
         )
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=1
-DATA_PATH="rmanluo/RoG-webqsp"
-DATASET_NAME="RoG-webqsp" # 通常与DATA_PATH的核心部分相同，用于缓存等
+DATA_PATH="rmanluo/RoG-cwq"
+DATASET_NAME="RoG-cwq" # 通常与DATA_PATH的核心部分相同，用于缓存等
 SPLIT="train"
 OUTPUT_PATH="data/processed" # 基础输出路径
 

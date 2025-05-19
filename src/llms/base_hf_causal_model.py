@@ -9,7 +9,8 @@ from transformers import (
     AutoModelForCausalLM,
     GenerationConfig,
     PreTrainedTokenizer,
-    PreTrainedModel
+    PreTrainedModel,
+    AutoConfig
 )
 from peft import PeftConfig
 from .base_language_model import BaseLanguageModel
@@ -267,100 +268,176 @@ class HfCausalModel(BaseLanguageModel):
         except Exception as e:
              logger.error(f"Failed to load tokenizer from '{model_path_or_id}': {e}", exc_info=True)
              raise
-
-
+         
     def _load_model(self, model_path_or_id: str) -> PreTrainedModel:
-        """Loads the Hugging Face model with configured arguments."""
         logger.info(f"Loading model from '{model_path_or_id}' with dtype={self.args.dtype}, quant={self.args.quant}, attn={self.args.attn_implementation or 'auto'}...")
 
-        load_kwargs = {
-            "pretrained_model_name_or_path": model_path_or_id,
+        if self.tokenizer is None:
+            logger.error("Tokenizer not loaded before model loading. This is a critical prerequisite.")
+            raise ValueError("Tokenizer must be loaded before calling _load_model.")
+
+        expected_vocab_size = len(self.tokenizer)
+        
+        # --- 参数准备 (不包含 config 对象，它将根据情况分别加载) ---
+        common_load_kwargs = {
             "torch_dtype": self.DTYPE_MAPPING.get(self.args.dtype),
             "device_map": self.device_map,
             "token": self.args.hf_token,
-            "trust_remote_code": True # Caution advised
+            "trust_remote_code": True
         }
 
-        # Validate dtype
-        if load_kwargs["torch_dtype"] is None:
-             logger.warning(f"Invalid dtype '{self.args.dtype}' specified. Using default torch.float16.")
-             load_kwargs["torch_dtype"] = torch.float16
-
-        # Handle Attention Implementation (Preferred method)
+        if common_load_kwargs["torch_dtype"] is None:
+            logger.warning(f"Invalid dtype '{self.args.dtype}' specified. Defaulting to torch.float16.")
+            common_load_kwargs["torch_dtype"] = torch.float16
         if hasattr(self.args, "attn_implementation") and self.args.attn_implementation:
-             # Let transformers handle 'None' or invalid values internally if possible
-             load_kwargs["attn_implementation"] = self.args.attn_implementation
-             logger.info(f"Requesting attn_implementation='{self.args.attn_implementation}'")
+            logger.info(f"Requesting attn_implementation='{self.args.attn_implementation}'")
+            common_load_kwargs["attn_implementation"] = self.args.attn_implementation
         else:
-             logger.info("Using default attention implementation.")
-
-
-        # Handle Quantization (bitsandbytes required)
+            logger.info("Using default attention implementation.")
+            if "attn_implementation" in common_load_kwargs: del common_load_kwargs["attn_implementation"]
+        
         load_in_4bit = False
         load_in_8bit = False
         if hasattr(self.args, "quant") and self.args.quant != "none":
             if self.args.quant == "4bit":
                 logger.info("Applying 4-bit quantization.")
                 load_in_4bit = True
-                load_kwargs["load_in_4bit"] = True
-                # Common practice: Set compute dtype for 4-bit
-                load_kwargs["bnb_4bit_compute_dtype"] = torch.bfloat16
-                load_kwargs["bnb_4bit_use_double_quant"] = True # Example optional BNB config
-                load_kwargs["bnb_4bit_quant_type"] = "nf4" # Example optional BNB config
-
+                common_load_kwargs["load_in_4bit"] = True
+                common_load_kwargs["bnb_4bit_compute_dtype"] = torch.bfloat16
+                common_load_kwargs["bnb_4bit_use_double_quant"] = True
+                common_load_kwargs["bnb_4bit_quant_type"] = "nf4"
             elif self.args.quant == "8bit":
                 logger.info("Applying 8-bit quantization.")
                 load_in_8bit = True
-                load_kwargs["load_in_8bit"] = True
+                common_load_kwargs["load_in_8bit"] = True
             else:
-                 logger.warning(f"Unsupported quantization value: {self.args.quant}. Ignoring.")
-
-        # Device map considerations for quantization
+                logger.warning(f"Unsupported quantization value: {self.args.quant}. Ignoring.")
+        
         if (load_in_4bit or load_in_8bit) and isinstance(self.device_map, str) and self.device_map == "auto":
-             # Often recommended to set device_map=None or {"": 0} for BNB quantization with auto-device map issues
-             # However, let's try "auto" first and rely on HF Accelerate
-             logger.debug("Using device_map='auto' with quantization.")
-             # Alternatively:
-             # load_kwargs["device_map"] = {"": 0} # Or None, if causing issues
-             # logger.info("Set device_map to {'': 0} for quantization.")
+            logger.debug("Using device_map='auto' with quantization.")
 
-
-        # Handle low_cpu_mem_usage
         if hasattr(self.args, "low_cpu_mem_usage") and self.args.low_cpu_mem_usage:
             logger.info("Using low_cpu_mem_usage=True.")
-            load_kwargs["low_cpu_mem_usage"] = True
-
-        # --- Load Model ---
+            common_load_kwargs["low_cpu_mem_usage"] = True
+        
+        model: PreTrainedModel
+        
         try:
-             model = AutoModelForCausalLM.from_pretrained(**load_kwargs)
-             # Set to eval mode immediately after loading
-             model.eval()
-             logger.info("Model loaded successfully and set to evaluation mode.")
-             return model
-        except ImportError as ie:
-            if 'flash_attn' in str(ie).lower():
-                 logger.error("Flash Attention requested but not installed. Install with `pip install flash-attn --no-build-isolation`. Loading without flash attention...")
-                 # Remove the attn arg and try again
-                 if "attn_implementation" in load_kwargs: del load_kwargs["attn_implementation"]
-                 # Retry loading without flash attention
-                 try:
-                      model = AutoModelForCausalLM.from_pretrained(**load_kwargs)
-                      model.eval()
-                      return model
-                 except Exception as retry_e:
-                      logger.error(f"Retry loading without flash attention failed: {retry_e}", exc_info=True)
-                      raise retry_e # Re-raise the retry error
-            elif 'bitsandbytes' in str(ie).lower():
-                 logger.error("Quantization requested but bitsandbytes is not installed. Install with `pip install bitsandbytes`.")
-                 raise ie
+            for attempt in range(2): # Flash Attention 重试循环
+                # 在重试循环内部复制 common_load_kwargs，以防 attn_implementation 被修改
+                current_attempt_load_kwargs = common_load_kwargs.copy()
+                try:
+                    is_adapter_path = os.path.exists(os.path.join(model_path_or_id, "adapter_config.json"))
+
+                    if is_adapter_path:
+                        from peft import PeftModel, PeftConfig
+                        logger.info(f"Path '{model_path_or_id}' detected as a PEFT adapter. Loading base model first.")
+                        
+                        peft_config_adapter = PeftConfig.from_pretrained(model_path_or_id, token=self.args.hf_token)
+                        base_model_name_or_path = peft_config_adapter.base_model_name_or_path
+                        logger.info(f"Base model for PEFT adapter: '{base_model_name_or_path}'")
+
+                        # 1. 使用其 *原始* 配置加载基础模型
+                        # 注意：此时不传递已修改的 config 对象给 from_pretrained，让它加载原始大小
+                        logger.info(f"Loading base model '{base_model_name_or_path}' with its original configuration first.")
+                        base_model = AutoModelForCausalLM.from_pretrained(
+                            base_model_name_or_path,
+                            **current_attempt_load_kwargs # common_load_kwargs 不包含修改后的 config
+                        )
+                        
+                        # 2. 如果需要，调整已加载基础模型的大小以匹配 tokenizer
+                        if base_model.config.vocab_size != expected_vocab_size:
+                            logger.info(
+                                f"Base model '{base_model_name_or_path}' loaded with vocab_size {base_model.config.vocab_size}. "
+                                f"Resizing to match tokenizer length {expected_vocab_size}."
+                            )
+                            base_model.resize_token_embeddings(expected_vocab_size)
+                            # 验证 resize 是否生效
+                            if base_model.config.vocab_size != expected_vocab_size or \
+                               base_model.get_input_embeddings().weight.shape[0] != expected_vocab_size:
+                                logger.error("CRITICAL: Base model vocab_size or embedding matrix size mismatch AFTER resize_token_embeddings!")
+                                raise RuntimeError("Failed to resize base model token embeddings correctly.")
+                        else:
+                            logger.info(
+                                f"Base model '{base_model_name_or_path}' vocab_size ({base_model.config.vocab_size}) "
+                                f"already matches tokenizer length ({expected_vocab_size}). No resize needed."
+                            )
+
+                        # 3. 加载PEFT适配器到调整后的基础模型
+                        logger.info(f"Loading PEFT adapter from '{model_path_or_id}' onto the (potentially resized) base model.")
+                        model = PeftModel.from_pretrained(base_model, model_path_or_id, is_trainable=False)
+                    
+                    else: # 是一个完整模型的路径
+                        logger.info(f"Path '{model_path_or_id}' detected as a full model directory.")
+                        config_obj_full_model = AutoConfig.from_pretrained(
+                            model_path_or_id,
+                            token=self.args.hf_token,
+                            trust_remote_code=True
+                        )
+                        if config_obj_full_model.vocab_size != expected_vocab_size:
+                            logger.warning(
+                                f"Full model config vocab_size ({config_obj_full_model.vocab_size}) from '{model_path_or_id}' "
+                                f"does not match tokenizer length ({expected_vocab_size}). Updating config."
+                            )
+                            config_obj_full_model.vocab_size = expected_vocab_size
+                        
+                        current_attempt_load_kwargs_full_model = current_attempt_load_kwargs.copy()
+                        current_attempt_load_kwargs_full_model['config'] = config_obj_full_model
+                        
+                        model = AutoModelForCausalLM.from_pretrained(
+                            model_path_or_id, 
+                            **current_attempt_load_kwargs_full_model
+                        )
+                        # 对于已保存的完整微调模型，加载后其大小应该已经和 tokenizer 匹配
+                        # 如果不匹配，说明保存的完整模型本身有问题
+                        if model.get_input_embeddings().weight.shape[0] != expected_vocab_size:
+                             logger.warning(
+                                f"Full model from '{model_path_or_id}' has embedding size "
+                                f"{model.get_input_embeddings().weight.shape[0]} which does not match tokenizer "
+                                f"length {expected_vocab_size} even after using potentially modified config. "
+                                f"This suggests the saved model weights are for a different vocab size. Attempting forceful resize."
+                            )
+                             model.resize_token_embeddings(expected_vocab_size) # 尝试强制修复
+
+                    break # 成功加载，跳出重试循环
+                except ImportError as ie_inner:
+                    if 'flash_attn' in str(ie_inner).lower() and attempt == 0: 
+                        logger.error("Flash Attention requested but not installed or failed. "
+                                     "Attempting to load without flash attention...")
+                        if "attn_implementation" in current_attempt_load_kwargs:
+                            del current_attempt_load_kwargs["attn_implementation"]
+                        # 如果 attn_implementation 是在 config 对象上设置的，也需要处理 (假设它不在 common_load_kwargs)
+                        # (在当前实现中，attn_implementation 主要通过 common_load_kwargs 传递)
+                    else:
+                        raise ie_inner 
+            
+            # --- 最终检查和返回 ---
+            if model.get_input_embeddings().weight.shape[0] != expected_vocab_size:
+                logger.error(
+                    f"CRITICAL: Final loaded model's embedding matrix size ({model.get_input_embeddings().weight.shape[0]}) "
+                    f"from '{model_path_or_id}' (tokenizer length: {expected_vocab_size}) does NOT match. "
+                )
+                # raise ValueError("Fatal: Model embedding size and tokenizer length mismatch after all loading attempts.")
             else:
-                logger.error(f"ImportError during model loading: {ie}", exc_info=True)
-                raise ie # Re-raise other import errors
+                logger.info(
+                    f"Model loaded. Final embedding matrix size: {model.get_input_embeddings().weight.shape[0]}. "
+                    f"Tokenizer length: {expected_vocab_size}."
+                )
+
+            model.eval()
+            logger.info("Model set to evaluation mode.")
+            return model
+
+        except ImportError as ie_outer: 
+            if 'bitsandbytes' in str(ie_outer).lower():
+                logger.error("Quantization requested but bitsandbytes is not installed. Install with `pip install bitsandbytes`.")
+            else:
+                logger.error(f"Unhandled ImportError during model loading: {ie_outer}", exc_info=True)
+            raise ie_outer
         except Exception as e:
-             logger.error(f"Error during AutoModelForCausalLM.from_pretrained: {e}", exc_info=True)
-             raise
-
-
+            logger.error(f"General error during model loading from '{model_path_or_id}': {e}", exc_info=True)
+            raise
+        
     def _load_generation_config(self, model_path_or_id: str) -> GenerationConfig:
         """Loads generation config, with fallback for PEFT models."""
         try:

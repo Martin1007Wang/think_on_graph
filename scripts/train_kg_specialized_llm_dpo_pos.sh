@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# echo "Waiting for process 3382739 to complete before starting..."
+
+# # 监控进程3382739是否存在
+# while ps -p 3382739 > /dev/null; do
+#   echo "Process 3382739 is still running. Checking again in 60 seconds..."
+#   sleep 60
+# done
+
+# echo "Process 3382739 has completed. Starting the script now..."
+
+
 # Shell 执行选项：如果任何命令失败，则立即退出；如果使用了未设置的变量，则报错
 set -e
 set -u
@@ -21,10 +32,10 @@ export TOKENIZERS_PARALLELISM=true
 export CUDA_VISIBLE_DEVICES=0,1
 
 # --- Path Configurations ---
-DATASET_NAME="cwq"
+DATASET_NAME="webqsp"
 DATASET_TYPE="naive_preference_dataset"
 CANDIDATE_STRATEGY="pn_only"
-POSITIVE_SOURCE_FIELD="shortest_paths"
+POSITIVE_SOURCE_FIELD="positive_paths"
 DATA_PATH_LIST="${BASE_PROJECT_DIR}/data/${DATASET_TYPE}/${DATASET_NAME}_train_cand_${CANDIDATE_STRATEGY}_pos_${POSITIVE_SOURCE_FIELD}"
 
 PYTHON_SCRIPT_PATH="workflow/finetune_kg_specialized_llm_dpo.py"
@@ -48,7 +59,7 @@ BNB_4BIT_USE_DOUBLE_QUANT_ARG=True
 
 
 # Training Hyperparameters
-NUM_TRAIN_EPOCHS=5
+NUM_TRAIN_EPOCHS=10
 PER_DEVICE_TRAIN_BATCH_SIZE=16
 GRADIENT_ACCUMULATION_STEPS=8
 GRADIENT_CHECKPOINTING=True

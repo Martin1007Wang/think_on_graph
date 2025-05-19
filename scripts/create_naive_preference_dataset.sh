@@ -11,7 +11,7 @@ export NEO4J_PASSWORD="Martin1007Wang" # Production: Use env vars or a secure co
 BASE_WORKDIR="/mnt/wangjingxiong/think_on_graph" # Main project directory
 
 # Dataset and Split Configuration
-DATASET_NAME="webqsp"
+DATASET_NAME="cwq"
 SPLIT="train"
 
 # Input for prepare_paths.py (Output of a previous step, or initial dataset)
@@ -25,20 +25,21 @@ PATH_GENERATION_OUTPUT_BASE="${BASE_WORKDIR}/data/processed" # Changed to be mor
 PATH_OUTPUT_DIR_NAME="${DATASET_NAME}_${SPLIT}"
 
 # Output base directory for create_preference_dataset_with_label.py
-PREFERENCE_DATASET_OUTPUT_BASE="${BASE_WORKDIR}/data/preference_dataset"
+PREFERENCE_DATASET_OUTPUT_BASE="${BASE_WORKDIR}/data/naive_preference_dataset"
 
 # Base name for the preference dataset outputs (suffixes will be added by Python script)
 PREFERENCE_BASE_OUTPUT_NAME="${DATASET_NAME}_${SPLIT}"
 
 # Python script names (assuming they are in a 'workflow' subdirectory)
 PREPARE_PATHS_SCRIPT="workflow/prepare_paths.py"
-CREATE_PREFERENCE_SCRIPT="workflow/create_preference_dataset.py" # Your Python script
+CREATE_PREFERENCE_SCRIPT="workflow/create_naive_preference_dataset.py" # Your Python script
 
 # --- DPO Preference Generation Configurations ---
 # Define strategies and positive source fields to iterate over
 # Ensure these values match the choices in your Python script's argparse
 CANDIDATE_STRATEGIES=("pn_only" "kg_allhop" "pn_kg_supplement")
 POSITIVE_SOURCE_FIELDS=("positive_paths" "shortest_paths")
+
 # CANDIDATE_STRATEGIES=("pn_only")
 # POSITIVE_SOURCE_FIELDS=("shortest_paths")
 

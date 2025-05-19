@@ -11,28 +11,12 @@ from collections import defaultdict
 import random
 from enum import Enum
 
-# Assuming these are correctly implemented in your src directory
-try:
-    from src.knowledge_graph import KnowledgeGraph
-    from src.template import KnowledgeGraphTemplates
-except ImportError:
-    logging.warning("Could not import KnowledgeGraph or KnowledgeGraphTemplates from src. KG-dependent features might not work.")
-    class KnowledgeGraph: # type: ignore
-        def __init__(self, uri, user, password): pass
-        def get_related_relations(self, entity, direction): return []
-        def close(self): pass
-    class KnowledgeGraphTemplates: # type: ignore
-        def format_template(self, template_name, **kwargs):
-            prompt_content = f"Question: {kwargs.get('question', '')}\n"
-            prompt_content += f"Current Entity: {kwargs.get('entity', '')}\n"
-            if kwargs.get('history'):
-                prompt_content += f"History:\n{kwargs.get('history')}\n"
-            prompt_content += f"Available Relations:\n{kwargs.get('relations', '')}\n"
-            prompt_content += f"Select up to {kwargs.get('max_selection_count', 5)} relations.\nYour Selection:"
-            return prompt_content
+from src.knowledge_graph import KnowledgeGraph
+from src.template import KnowledgeGraphTemplates
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
 
 class CandidateStrategy(Enum):
     PN_ONLY = "pn_only"
@@ -51,6 +35,34 @@ class ProcessingConfig:
     num_distractors_to_sample: int = 10
     candidate_strategy: CandidateStrategy = CandidateStrategy.PN_KG_SUPPLEMENT
     positive_source_field: PositiveSource = PositiveSource.POSITIVE_PATHS
+
+
+def format_template(template_name: str, **kwargs: Any) -> str:    
+    question = kwargs.get('question', '')
+    entity = kwargs.get('entity', '')
+    history = kwargs.get('history')  # Expects a pre-formatted string or None
+    max_selection_count = kwargs.get('max_selection_count', 5)
+    prompt_content = "Based on the following information:\n"
+    prompt_content += f"- Question: {question}\n"
+    prompt_content += f"- Current Entity: {entity}\n"
+    
+    if history:
+        prompt_content += f"- Exploration History:\n{history.strip()}\n" # 使用 strip() 移除可能的前后空白
+
+    instruction = f"\nPlease generate up to {max_selection_count} relations from the Current Entity "
+    instruction += "that are most relevant to answering the Question"
+    
+    if history:
+        instruction += ", considering the Exploration History provided."
+    else:
+        instruction += "."
+    prompt_content += instruction + "\n"
+        
+    # 输出格式说明
+    prompt_content += "\nYour Generated Relations (one relation name per line):"
+    
+    return prompt_content
+
 
 def parse_path_to_segments(path_str: str) -> List[Tuple[str, str, str]]:
     if not path_str:
@@ -82,94 +94,95 @@ def build_history_key(history_segments: List[Tuple[str, str, str]]) -> str:
 
 def create_relation_selection_example_with_history(
     question: str,
-    history_tuples: List[Tuple[str, str, str]], # These contribute to the user_prompt_content
+    history_tuples: List[Tuple[str, str, str]],
     current_entity: str,
-    prompt_available_relations: List[str],
+    all_possible_relations_for_step: List[str], # Renamed from prompt_available_relations
     gold_chosen_relations: List[str],
     gold_negative_relations: List[str],
     max_selection_count: int,
     template_builder: KnowledgeGraphTemplates
 ) -> Optional[Dict[str, Any]]:
-    unique_prompt_available_relations = sorted(list(set(prompt_available_relations)))
-    
-    if not unique_prompt_available_relations:
-        logger.debug(f"No available relations for prompt for entity '{current_entity}' with history '{build_history_key(history_tuples)}'. Cannot form DPO example.")
+    # unique_all_possible_relations is the set of all relations considered
+    # candidates for this step, from which 'chosen' and 'rejected' will be derived.
+    # They are not explicitly shown in the prompt.
+    unique_all_possible_relations = sorted(list(set(all_possible_relations_for_step)))
+
+    if not unique_all_possible_relations:
+        logger.debug(f"No possible relations identified for entity '{current_entity}' with history '{build_history_key(history_tuples)}'. Cannot form DPO example.")
         return None
 
-    relation_options_lines = []
-    rel_to_display_line: Dict[str, str] = {}
-    for i, rel_name in enumerate(unique_prompt_available_relations):
-        rel_id_str = f"REL_{i}"
-        display_line = f"[{rel_id_str}] {rel_name}"
-        relation_options_lines.append(f"      {display_line}")
-        rel_to_display_line[rel_name] = display_line
-    relation_options_str = "\n".join(relation_options_lines)
-
+    # Format history section for the prompt
     history_section_str = ""
-    if history_tuples: # This history is part of the user's current turn content
-        history_lines = ["* Exploration History:"]
+    if history_tuples:
+        history_lines = []
         for i_hist, (src_hist, rel_hist, tgt_hist) in enumerate(history_tuples):
             history_lines.append(f"  Step {i_hist+1}: From '{src_hist}' explored relation '{rel_hist}', leading to '{tgt_hist}'.")
-        history_section_str = "\n".join(history_lines) + "\n"
-        template_name = "relation_selection_with_history"
-        template_args = {
-            "question": question, "entity": current_entity, "history": history_section_str,
-            "relations": relation_options_str, "max_selection_count": max_selection_count
-        }
-    else:
-        template_name = "relation_selection"
-        template_args = {
-            "question": question, "entity": current_entity, "history": "",
-            "relations": relation_options_str, "max_selection_count": max_selection_count
-        }
-    
-    user_prompt_content = template_builder.format_template(template_name, **template_args)
+        history_section_str = "\n".join(history_lines)
 
-    chosen_response_content_lines = []
-    for rel_name in gold_chosen_relations:
-        if rel_name in rel_to_display_line:
-            chosen_response_content_lines.append(rel_to_display_line[rel_name])
-    chosen_response_content_lines.sort()
-    chosen_response_content_lines = chosen_response_content_lines[:max_selection_count]
+    # Arguments for the new generation template format
+    template_args = {
+        "question": question,
+        "entity": current_entity,
+        "history": history_section_str,
+        "max_selection_count": max_selection_count
+        # "relations" (the formatted list with REL_X) is no longer passed
+    }
+    template_name = "relation_generation_with_history" if history_tuples else "relation_generation"
+    user_prompt_content = format_template(template_name, **template_args)
+
+    # --- Prepare CHOSEN and REJECTED responses without [REL_X] prefixes ---
+
+    # CHOSEN: Directly from gold_chosen_relations, ensuring they are among the possible ones for this step.
+    valid_gold_chosen_relations = [rel for rel in gold_chosen_relations if rel in unique_all_possible_relations]
+    chosen_response_content_lines = sorted(list(set(valid_gold_chosen_relations)))[:max_selection_count]
 
     if not chosen_response_content_lines:
+        logger.debug(f"No valid gold_chosen_relations found among all_possible_relations for entity '{current_entity}'. Chosen: {gold_chosen_relations}, Possible: {unique_all_possible_relations}")
         return None
     chosen_response_content_str = "\n".join(chosen_response_content_lines)
 
-    candidate_rejected_display_lines = []
-    for rel_name in gold_negative_relations:
-        if rel_name in rel_to_display_line and rel_to_display_line[rel_name] not in chosen_response_content_lines:
-            candidate_rejected_display_lines.append(rel_to_display_line[rel_name])
-    
-    other_available_not_chosen_or_gold_negative = []
-    for rel_name in unique_prompt_available_relations:
-        display_line = rel_to_display_line[rel_name]
-        if display_line not in chosen_response_content_lines and display_line not in candidate_rejected_display_lines:
-            other_available_not_chosen_or_gold_negative.append(display_line)
-    other_available_not_chosen_or_gold_negative.sort()
-    
-    final_rejected_lines_set = set(candidate_rejected_display_lines)
-    for line in other_available_not_chosen_or_gold_negative:
+    # REJECTED:
+    # 1. Start with gold_negative_relations (that are valid and not in chosen).
+    # 2. Fill up with other relations from unique_all_possible_relations that are not chosen, up to max_selection_count.
+    candidate_rejected_rels = {
+        rel for rel in gold_negative_relations
+        if rel in unique_all_possible_relations and rel not in chosen_response_content_lines
+    }
+
+    other_available_not_chosen = {
+        rel for rel in unique_all_possible_relations
+        if rel not in chosen_response_content_lines and rel not in candidate_rejected_rels
+    }
+
+    final_rejected_lines_set = set(candidate_rejected_rels)
+    other_available_list_shuffled = list(other_available_not_chosen)
+    random.shuffle(other_available_list_shuffled) # Shuffle to avoid bias
+
+    for rel_name in other_available_list_shuffled:
         if len(final_rejected_lines_set) < max_selection_count:
-            final_rejected_lines_set.add(line)
+            final_rejected_lines_set.add(rel_name)
         else:
             break
+    
+    # Ensure there's at least one rejected line if possible,
+    # if we don't have enough from just gold_negative and shuffled others.
+    if not final_rejected_lines_set and unique_all_possible_relations:
+        potential_rejected = [r for r in unique_all_possible_relations if r not in chosen_response_content_lines]
+        random.shuffle(potential_rejected)
+        final_rejected_lines_set.update(potential_rejected[:max_selection_count])
+
     rejected_response_content_lines = sorted(list(final_rejected_lines_set))[:max_selection_count]
 
     if not rejected_response_content_lines:
+        logger.debug(f"No rejected relations could be formed for entity '{current_entity}'. Chosen: {chosen_response_content_lines}, Possible: {unique_all_possible_relations}")
         return None
     rejected_response_content_str = "\n".join(rejected_response_content_lines)
 
     if chosen_response_content_str == rejected_response_content_str:
+        logger.debug(f"Chosen and rejected responses are identical for entity '{current_entity}'. Chosen: {chosen_response_content_str}")
         return None
 
-    # Construct the DPO example in the list-of-dictionaries format
-    # The "prompt" for DPO is the sequence of turns leading up to the assistant's response.
-    # In this specific task, the entire context (question, entity, history, available relations, task description)
-    # is presented as a single user turn.
     # dpo_prompt_list = [{"role": "user", "content": user_prompt_content.strip()}]
-    
-    # # The "chosen" and "rejected" fields are lists containing a single assistant turn.
     # dpo_chosen_list = [{"role": "assistant", "content": chosen_response_content_str.strip()}]
     # dpo_rejected_list = [{"role": "assistant", "content": rejected_response_content_str.strip()}]
 
@@ -178,7 +191,7 @@ def create_relation_selection_example_with_history(
         "chosen": chosen_response_content_str.strip(),
         "rejected": rejected_response_content_str.strip()
     }
-
+    
 def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config: ProcessingConfig, template_builder: KnowledgeGraphTemplates) -> List[Dict[str, Any]]:
     question = item.get("question", "")
     sample_id = item.get("id", "unknown")
@@ -212,7 +225,7 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
     
     processed_examples_tracker = set()
 
-    for p_path_str in item.get('positive_paths', []):
+    for p_path_str in item.get('positive_paths', []): # Iterate over positive paths to define "steps"
         path_segments = parse_path_to_segments(p_path_str)
         if not path_segments and p_path_str: 
             continue
@@ -235,7 +248,7 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
             current_gold_chosen_relations = sorted(list(gold_chosen_rels_for_step_set))
             current_gold_negative_relations = sorted(list(negative_next_relations[history_key_for_lookup].get(src_step, set())))
             
-            candidate_pool_for_prompt_set = set()
+            candidate_pool_for_step_set = set() # This is the universe of possible relations for this step
             relations_from_kg_set = set()
 
             if config.candidate_strategy in [CandidateStrategy.KG_ALLHOP, CandidateStrategy.PN_KG_SUPPLEMENT]:
@@ -250,40 +263,71 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
                     logger.error(f"Error fetching relations from KG for entity {src_step}: {e_kg}. KG relations not used.")
 
             if config.candidate_strategy == CandidateStrategy.PN_ONLY:
-                candidate_pool_for_prompt_set.update(current_gold_chosen_relations)
-                candidate_pool_for_prompt_set.update(current_gold_negative_relations)
+                candidate_pool_for_step_set.update(current_gold_chosen_relations)
+                candidate_pool_for_step_set.update(current_gold_negative_relations)
             elif config.candidate_strategy == CandidateStrategy.KG_ALLHOP:
-                candidate_pool_for_prompt_set.update(relations_from_kg_set)
+                candidate_pool_for_step_set.update(relations_from_kg_set)
+                # Ensure gold relations are in the pool if using KG_ALLHOP,
+                # as they form the basis for chosen/rejected.
+                candidate_pool_for_step_set.update(current_gold_chosen_relations) 
+                candidate_pool_for_step_set.update(current_gold_negative_relations)
             elif config.candidate_strategy == CandidateStrategy.PN_KG_SUPPLEMENT:
-                candidate_pool_for_prompt_set.update(current_gold_chosen_relations)
-                candidate_pool_for_prompt_set.update(current_gold_negative_relations)
-                supplementary_kg_candidates = list(relations_from_kg_set - candidate_pool_for_prompt_set)
+                candidate_pool_for_step_set.update(current_gold_chosen_relations)
+                candidate_pool_for_step_set.update(current_gold_negative_relations)
+                supplementary_kg_candidates = list(relations_from_kg_set - candidate_pool_for_step_set)
                 random.shuffle(supplementary_kg_candidates)
-                candidate_pool_for_prompt_set.update(supplementary_kg_candidates[:config.num_distractors_to_sample])
+                candidate_pool_for_step_set.update(supplementary_kg_candidates[:config.num_distractors_to_sample])
             
-            final_relations_for_prompt_list: List[str]
-            if config.enable_relation_sampling and len(candidate_pool_for_prompt_set) > config.relation_sampling_threshold:
-                sampled_set = set(current_gold_chosen_relations)
-                sampled_set.update(current_gold_negative_relations)
-                sampled_set = {r for r in sampled_set if r in candidate_pool_for_prompt_set}
-                potential_distractors = list(candidate_pool_for_prompt_set - sampled_set)
+            # all_relations_for_step_list is the set of all relations that *could* be generated by the model
+            # for this specific step. 'chosen' and 'rejected' will be derived from this.
+            all_relations_for_step_list: List[str]
+            if config.enable_relation_sampling and len(candidate_pool_for_step_set) > config.relation_sampling_threshold:
+                sampled_set = set(current_gold_chosen_relations) # Always include gold chosen
+                sampled_set.update(current_gold_negative_relations) # and gold negative
+                
+                # Ensure sampled relations are within the candidate pool
+                sampled_set = {r for r in sampled_set if r in candidate_pool_for_step_set}
+
+                potential_distractors = list(candidate_pool_for_step_set - sampled_set)
                 random.shuffle(potential_distractors)
+                
+                # Calculate how many distractors to add
                 num_distractors_to_add = config.num_distractors_to_sample
+                
+                # Adjust if the total would exceed relation_sampling_threshold
+                # The goal is for all_relations_for_step_list to not be excessively large,
+                # but to contain gold relations and sufficient distractors.
+                
                 distractors_to_add = potential_distractors[:num_distractors_to_add]
                 sampled_set.update(distractors_to_add)
-                final_relations_for_prompt_list = sorted(list(sampled_set))
+                
+                # If sampled_set is still larger than relation_sampling_threshold, truncate, prioritizing gold.
+                if len(sampled_set) > config.relation_sampling_threshold:
+                    temp_list = list(sampled_set - set(current_gold_chosen_relations) - set(current_gold_negative_relations))
+                    random.shuffle(temp_list)
+                    
+                    final_sampled_set = set(current_gold_chosen_relations)
+                    final_sampled_set.update(current_gold_negative_relations)
+                    
+                    remaining_slots = config.relation_sampling_threshold - len(final_sampled_set)
+                    if remaining_slots > 0:
+                        final_sampled_set.update(temp_list[:remaining_slots])
+                    all_relations_for_step_list = sorted(list(final_sampled_set))
+                else:
+                     all_relations_for_step_list = sorted(list(sampled_set))
             else:
-                final_relations_for_prompt_list = sorted(list(candidate_pool_for_prompt_set))
+                all_relations_for_step_list = sorted(list(candidate_pool_for_step_set))
 
-            if not final_relations_for_prompt_list:
+            if not all_relations_for_step_list:
+                # This can happen if candidate_pool_for_step_set was empty.
                 current_history_for_prompt.append((src_step, rel_step_this_path, tgt_step))
                 continue
             
             example = create_relation_selection_example_with_history(
                 question=question,
-                history_tuples=current_history_for_prompt, # This history is used to build the user_prompt_content
+                history_tuples=current_history_for_prompt, 
                 current_entity=src_step,
-                prompt_available_relations=final_relations_for_prompt_list,
+                all_possible_relations_for_step=all_relations_for_step_list, # This is the universe from which chosen/rejected are picked
                 gold_chosen_relations=current_gold_chosen_relations, 
                 gold_negative_relations=current_gold_negative_relations,
                 max_selection_count=config.max_selection_count,
@@ -300,8 +344,8 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
                 "hop_in_path": i_seg,
                 "current_source_entity": src_step,
                 "current_history_key_for_lookup": history_key_for_lookup,
-                "current_history_for_prompt_summary": [f"{s}-[{r}]->{t}" for s,r,t in current_history_for_prompt], # Renamed for clarity
-                "prompt_available_relations": final_relations_for_prompt_list,
+                "current_history_for_prompt_summary": [f"{s}-[{r}]->{t}" for s,r,t in current_history_for_prompt],
+                "all_possible_relations_for_step": all_relations_for_step_list, # field name updated for clarity
                 "step_gold_chosen_relations": current_gold_chosen_relations,
                 "step_gold_negative_relations": current_gold_negative_relations,
                 "config_candidate_strategy": config.candidate_strategy.value,
@@ -323,9 +367,9 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
             with open(args.input_path, 'r', encoding='utf-8') as f:
                 if args.input_path.endswith('.jsonl'):
                     path_data = [json.loads(line) for line in f]
-                else:
+                else: # .json
                     path_data = json.load(f)
-            if not isinstance(path_data, list):
+            if not isinstance(path_data, list): # Ensure top level is a list
                 logger.error(f"File {args.input_path} does not contain a list of items at the top level.")
                 return
         except json.JSONDecodeError:
@@ -334,14 +378,14 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
         except FileNotFoundError:
             logger.error(f"Input file not found: {args.input_path}")
             return
-    else: 
+    else: # Hugging Face dataset directory
         try:
             hf_dataset = Dataset.load_from_disk(args.input_path)
-            path_data = list(hf_dataset) 
+            path_data = list(hf_dataset) # Convert to list of dicts
         except FileNotFoundError:
             logger.error(f"Hugging Face dataset directory not found: {args.input_path}")
             return
-        except Exception as e: 
+        except Exception as e: # Catch other potential errors from load_from_disk
             logger.error(f"Error loading Hugging Face dataset from {args.input_path}: {e}", exc_info=True)
             return
     
@@ -364,13 +408,14 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
     logger.info(f"Starting DPO example generation with config: {config}")
     all_preference_examples: List[Dict[str, Any]] = []
     
-    kg_instance: Optional[KnowledgeGraph] = None # Type hint
+    kg_instance: Optional[KnowledgeGraph] = None 
     if args.candidate_strategy != CandidateStrategy.PN_ONLY.value:
         try:
-            if KnowledgeGraph is not None and hasattr(KnowledgeGraph, '__init__'): 
-                 kg_instance = KnowledgeGraph(args.neo4j_uri, args.neo4j_user, args.neo4j_password)
+            # Check if KnowledgeGraph is a class and has an __init__ method
+            if isinstance(KnowledgeGraph, type) and hasattr(KnowledgeGraph, '__init__'): 
+                kg_instance = KnowledgeGraph(args.neo4j_uri, args.neo4j_user, args.neo4j_password)
             else:
-                logger.warning("KnowledgeGraph class not available or not a class, KG-dependent strategies will be limited.")
+                logger.warning("KnowledgeGraph class not available or not a proper class, KG-dependent strategies will be limited.")
         except Exception as e:
             logger.error(f"Failed to initialize KnowledgeGraph: {e}. KG-dependent strategies will be limited.", exc_info=True)
             
@@ -415,7 +460,7 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
             logger.error(f"Failed to save DPO preference dataset to JSON Lines: {e}", exc_info=True)
         
         try:
-            if all(isinstance(ex, dict) for ex in all_preference_examples):
+            if all(isinstance(ex, dict) for ex in all_preference_examples): # Ensure all items are dicts
                 hf_preference_dataset = Dataset.from_list(all_preference_examples)
                 hf_preference_dataset.save_to_disk(output_dir)
                 logger.info(f"DPO preference dataset saved to Hugging Face disk format: {output_dir}")
@@ -423,35 +468,35 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
                 logger.error("Not all generated examples are dictionaries, cannot save to Hugging Face disk format.")
         except Exception as e:
             logger.error(f"Failed to save DPO preference dataset to Hugging Face disk format in {output_dir}: {e}", exc_info=True)
-            if os.path.exists(json_output_path):
+            if os.path.exists(json_output_path): # Inform user if JSONL save was successful
                 logger.info(f"JSON Lines save to {json_output_path} might still be available.")
     else:
         logger.warning("No DPO preference examples were collected. Nothing to save.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create DPO preference dataset from path-enhanced data, with history and relation sampling.")
+    parser = argparse.ArgumentParser(description="Create DPO preference dataset from path-enhanced data, with history and relation sampling, using generation prompts.")
     parser.add_argument('--input_path', type=str, required=True,
                         help='Input path-enhanced dataset file (e.g., data.json, data.jsonl) or Hugging Face dataset directory.')
     parser.add_argument('--output_path', type=str, default='./data/processed_dpo',
                         help='Base output directory for the new DPO dataset.')
     parser.add_argument('--base_output_name', type=str, default='dpo_prefs',
-                        help='Base name for the output DPO preference dataset directory (strategy/source info will be appended).')
+                        help='Base name for the output DPO preference dataset directory (strategy/source/prompt_style info will be appended).')
     
     parser.add_argument('--candidate_strategy', type=str, default=CandidateStrategy.PN_KG_SUPPLEMENT.value,
                         choices=[cs.value for cs in CandidateStrategy],
-                        help='Strategy for constructing candidate relations for the prompt.')
+                        help='Strategy for constructing candidate relations for deriving chosen/rejected responses.')
     parser.add_argument('--positive_source_field', type=str, default=PositiveSource.POSITIVE_PATHS.value,
                         choices=[ps.value for ps in PositiveSource],
                         help='Field in input data to use as source for positive relations (e.g., "positive_paths" or "shortest_paths").')
 
     parser.add_argument('--max_selection_count', type=int, default=5,
-                        help='Maximum number of relations the prompt asks the model to select.')
+                        help='Maximum number of relations the prompt asks the model to generate (also caps chosen/rejected lists).')
     parser.add_argument('--enable_relation_sampling', action='store_true',
-                        help='Enable sampling of relations if the candidate pool exceeds a threshold.')
+                        help='Enable sampling of relations if the candidate pool (for deriving chosen/rejected) exceeds a threshold.')
     parser.add_argument('--relation_sampling_threshold', type=int, default=25,
                         help='Threshold for candidate relations pool size to trigger sampling.')
     parser.add_argument('--num_distractors_to_sample', type=int, default=10,
-                        help='Number of distractor relations to sample if sampling is triggered.')
+                        help='Number of distractor relations to sample if sampling is triggered or PN_KG_SUPPLEMENT is active.')
 
     parser.add_argument('--num_samples', type=int, default=-1,
                         help='Maximum number of items to process from the input path_data (-1 for all).')
@@ -463,13 +508,14 @@ if __name__ == "__main__":
 
     template_builder_instance = None
     # Ensure KnowledgeGraphTemplates is a class and can be instantiated
-    if KnowledgeGraphTemplates is not None and callable(KnowledgeGraphTemplates): 
+    if isinstance(KnowledgeGraphTemplates, type) and callable(KnowledgeGraphTemplates): 
         try:
             template_builder_instance = KnowledgeGraphTemplates()
         except Exception as e:
             logger.error(f"Failed to initialize KnowledgeGraphTemplates: {e}. Ensure 'src.template.KnowledgeGraphTemplates' is correctly defined and callable.")
             exit(1) 
     else:
+        # This will occur if the mock is not defined as a class, or if the original import failed and the mock is not a class.
         logger.error("KnowledgeGraphTemplates class definition not found or not callable. Cannot proceed.")
         exit(1)
 

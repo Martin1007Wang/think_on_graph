@@ -17,7 +17,7 @@
 #     --clear ${CLEAR} 
 
 #!/bin/bash
-DATASET="RoG-webqsp"
+DATASET="RoG-cwq"
 SPLIT="test"
 NEO4J_URI="bolt://localhost:7687"
 NEO4J_USER="neo4j"

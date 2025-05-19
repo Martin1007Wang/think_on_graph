@@ -28,8 +28,7 @@ def main():
     kg = KnowledgeGraph(
         uri=args.neo4j_uri,
         user=args.neo4j_user,
-        password=args.neo4j_password,
-        model_name=args.model_name,
+        password=args.neo4j_password
     )
     
     try:
@@ -42,7 +41,7 @@ def main():
         if not os.path.exists(input_file):
             logger.warning(f"Warning: {input_file} does not exist as a file")
 
-        kg.load_graph_from_dataset(input_file, args.dataset, args.split)
+        kg.load_graph_from_dataset(input_file, args.model_name, hf_dataset_split=args.split)
     finally:
         kg.close()
 
