@@ -20,24 +20,23 @@ fi
 
 # --- 并行化和设备配置 ---
 export TOKENIZERS_PARALLELISM=true
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0,1
 
 # --- 数据路径配置 ---
 DATASET_NAME="webqsp"
 CANDIDATE_STRATEGY="pn_kg_supplement"
 POSITIVE_SOURCE_FIELD="shortest_paths"
-DATA_PATH_LIST="${BASE_PROJECT_DIR}/data/instruction_dataset/${DATASET_NAME}_train_sft_instruct_cand_${CANDIDATE_STRATEGY}_pos_${POSITIVE_SOURCE_FIELD}"
+SPLIT="train"
+DATASET_TYPE="naive_instruction_dataset"
+DATA_PATH_LIST="${BASE_PROJECT_DIR}/data/${DATASET_TYPE}/${DATASET_NAME}_${SPLIT}_cand_${CANDIDATE_STRATEGY}_pos_${POSITIVE_SOURCE_FIELD}"
 
-SAVE_PROCESSED_TRAIN_DATA_PATH="cache/relation_sft_dataset_processed_by_script_${DATASET_NAME}_${CANDIDATE_STRATEGY}_${POSITIVE_SOURCE_FIELD}"
-DATASET_CACHE_DIR="cache/hf_datasets_map_cache"
-FORCE_DATA_PROCESSING=False
 
 PYTHON_SCRIPT_PATH="workflow/finetune_kg_specialized_llm_sft.py"
 ACCELERATE_CONFIG_FILE="accelerate_configs/deepspeed_zero2.yaml"
 
 # --- 训练参数 ---
 NUM_TRAIN_EPOCHS=5
-PER_DEVICE_TRAIN_BATCH_SIZE=32
+PER_DEVICE_TRAIN_BATCH_SIZE=4
 GRADIENT_ACCUMULATION_STEPS=8
 GRADIENT_CHECKPOINTING=True
 LEARNING_RATE=5e-5
@@ -51,42 +50,39 @@ LORA_R=8
 LORA_ALPHA=16
 LORA_DROPOUT=0.05
 TARGET_MODULES="q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
-SAVE_MERGED=True
+
+# Quantization Configuration
+LOAD_IN_4BIT=False
+LOAD_IN_8BIT=True
+# BNB 4-bit参数（仅当LOAD_IN_4BIT=True时传递）
+BNB_4BIT_QUANT_TYPE_ARG="nf4"
+BNB_4BIT_COMPUTE_DTYPE_ARG="bfloat16"
+BNB_4BIT_USE_DOUBLE_QUANT_ARG=True
 
 # --- 模型与输出配置 ---
 MODEL_BASENAME=$(basename "$MODEL_PATH")
-SAVE_PATH_BASE="sft_models_v4/GCR-lora-sft_v4_${DATASET_NAME}_${CANDIDATE_STRATEGY}_${POSITIVE_SOURCE_FIELD}"
+SAVE_PATH_BASE="sft_models_v4/lora_${DATASET_TYPE}_${DATASET_NAME}_${CANDIDATE_STRATEGY}_${POSITIVE_SOURCE_FIELD}"
 RUN_SPECIFIC_NAME="${MODEL_BASENAME}_epoch${NUM_TRAIN_EPOCHS}_lora_r${LORA_R}" # SFT 特定命名
 SAVE_PATH="${SAVE_PATH_BASE}/${RUN_SPECIFIC_NAME}"
 WANDB_RUN_NAME="${RUN_SPECIFIC_NAME}"
-
-# --- 量化配置 ---
-LOAD_IN_4BIT=False
-LOAD_IN_8BIT=False
-
-BNB_4BIT_QUANT_TYPE="nf4"
-BNB_4BIT_COMPUTE_DTYPE="bfloat16"
-BNB_4BIT_USE_DOUBLE_QUANT=True
 
 # --- 其他配置 ---
 ATTN_IMPLEMENTATION="flash_attention_2"
 DATALOADER_NUM_WORKERS=8
 DATALOADER_PIN_MEMORY=True
-
 # Precision
 FP16=False
 BF16=True
 
 # Saving and Logging
-SAVE_STRATEGY="steps"
-SAVE_STEPS=2000
-SAVE_TOTAL_LIMIT=1
-LOGGING_STEPS=50
+SAVE_MERGED=True
+SAVE_STRATEGY="epoch"
+# SAVE_STEPS=200
+SAVE_TOTAL_LIMIT=2
+LOGGING_STEPS=10
 REPORT_TO="wandb"
 
 # --- 响应模板配置 (关键修改) ---
-LLAMA3_SFT_TEMPLATE_STRING="<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n{completion}<|eot_id|>"
-RESPONSE_TEMPLATE_TO_PASS="${LLAMA3_SFT_TEMPLATE_STRING}"
 
 # --- Script Sanity Checks ---
 if [ ! -f "$PYTHON_SCRIPT_PATH" ]; then
@@ -107,9 +103,6 @@ CMD="accelerate launch --config_file \"${ACCELERATE_CONFIG_FILE}\" \"${PYTHON_SC
 
 # 数据相关参数
 CMD+=" --data_path_list \"${DATA_PATH_LIST}\""
-CMD+=" --save_processed_train_dataset_path \"${SAVE_PROCESSED_TRAIN_DATA_PATH}\""
-CMD+=" --dataset_cache_dir \"${DATASET_CACHE_DIR}\""
-CMD+=" --force_data_processing ${FORCE_DATA_PROCESSING}"
 
 # 模型与输出参数
 CMD+=" --model_name_or_path \"${MODEL_PATH}\""
@@ -143,7 +136,6 @@ CMD+=" --per_device_eval_batch_size 1"
 CMD+=" --gradient_accumulation_steps ${GRADIENT_ACCUMULATION_STEPS}"
 CMD+=" --eval_strategy \"no\""
 CMD+=" --save_strategy \"${SAVE_STRATEGY}\""
-CMD+=" --save_steps \"${SAVE_STEPS}\""
 CMD+=" --save_total_limit ${SAVE_TOTAL_LIMIT}"
 CMD+=" --learning_rate ${LEARNING_RATE}"
 CMD+=" --weight_decay ${WEIGHT_DECAY}"
@@ -157,11 +149,6 @@ CMD+=" --gradient_checkpointing ${GRADIENT_CHECKPOINTING}"
 # 其他一般参数
 if [ -n "${ATTN_IMPLEMENTATION:-}" ]; then
     CMD+=" --attn_implementation \"${ATTN_IMPLEMENTATION}\""
-fi
-
-# 传递 response_template (关键修改)
-if [ -n "${RESPONSE_TEMPLATE_TO_PASS:-}" ]; then
-    CMD+=" --response_template \"${RESPONSE_TEMPLATE_TO_PASS}\""
 fi
 
 CMD+=" --dataloader_num_workers ${DATALOADER_NUM_WORKERS}"

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Dict, Optional, Set, Callable # Added Callable
+from typing import Any, List, Dict, Optional, Set, Callable, Tuple # Added Callable
 from src.llm_output_parser import LLMOutputParser # Assume this exists and is correct
 # from src.template import KnowledgeGraphTemplates # Add specific type if available
 from collections import OrderedDict
@@ -13,21 +13,7 @@ ModelType = Any
 TemplateManagerType = Any # Replace with specific class, e.g., KnowledgeGraphTemplates
 
 class ModelInterface:
-    """
-    Interface for interacting with language models for generation and selection tasks,
-    handling prompt formatting, generation calls, and output parsing.
-    """
     def __init__(self, model: ModelType, templates: TemplateManagerType, parser: Optional[LLMOutputParser] = None):
-        """
-        Initializes the ModelInterface.
-
-        Args:
-            model: The underlying language model instance. Must have methods like
-                   'prepare_model_prompt' and 'generate_sentence'.
-            templates: An object responsible for formatting prompts (e.g., KnowledgeGraphTemplates).
-                       Must have a 'format_template' method.
-            parser: An instance of LLMOutputParser. If None, a default instance is created.
-        """
         if not hasattr(model, 'prepare_model_prompt') or not hasattr(model, 'generate_sentence'):
              raise TypeError(f"Model object {model.__class__.__name__} must have 'prepare_model_prompt' and 'generate_sentence' methods.")
         if not hasattr(templates, 'format_template'):
@@ -46,18 +32,6 @@ class ModelInterface:
                         generation_mode: str = "beam", # Renamed for clarity
                         num_beams: int = 4,
                         **template_args) -> Optional[str]:
-        """
-        Formats a prompt, generates output using the model, and handles errors.
-
-        Args:
-            template_name: The name of the template to use.
-            generation_mode: The generation mode for the model.
-            num_beams: The number of beams for beam search generation.
-            **template_args: Arguments required by the template.
-
-        Returns:
-            The generated text output as a string, or None if generation fails.
-        """
         log_ctx_parts = [f"{k}='{str(v)[:50]}...'" for k, v in template_args.items() if k in ['entity', 'question', 'cvt_id']]
         log_context = ", ".join(log_ctx_parts) if log_ctx_parts else "No specific context args"
         logger.debug(f"Attempting generation for template='{template_name}'. Context: {log_context}")
@@ -94,27 +68,6 @@ class ModelInterface:
                       generation_mode: str = "beam", # Allow overriding generation params
                       num_beams: int = 4,
                       **template_args) -> List[str]:
-        """
-        Internal helper to select a subset of items using an LLM.
-
-        Handles item formatting, LLM generation, parsing, result mapping, and fallback logic.
-
-        Args:
-            item_type: A string describing the items (e.g., "relation", "attribute"). Used for logging and template keys.
-            items: The list of string items to select from.
-            max_items: The maximum number of items to select. If None or >= len(items), returns all items without calling LLM.
-            id_prefix: A prefix used to generate unique IDs for items presented to the LLM (e.g., "REL", "ATTR").
-            template_name: The name of the template used for the selection prompt.
-            parser_method_name: The name of the method in self.parser to use for parsing the LLM output.
-            fallback_on_error: If True, returns the first `max_items` on generation or parsing failure. Defaults to False.
-            generation_mode: Generation mode for the LLM call.
-            num_beams: Number of beams for the LLM call.
-            **template_args: Additional arguments needed for the prompt template.
-
-        Returns:
-            A list containing the selected items (strings). Returns an empty list if selection fails
-            and fallback_on_error is False.
-        """
         if not items:
             logger.debug(f"No {item_type}s provided for selection. Returning empty list.")
             return []
@@ -224,10 +177,6 @@ class ModelInterface:
                 return items[:max_items]
             else:
                 return []
-
-
-    # --- Public Selection Methods ---
-    # Now accept optional generation params and fallback config
 
     def select_relations(self, entity: str, available_relations: List[str], question: str,
                          history: str = "", max_selection_count: int = 5,

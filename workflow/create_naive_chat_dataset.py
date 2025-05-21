@@ -37,6 +37,34 @@ class ProcessingConfig:
     candidate_strategy: CandidateStrategy = CandidateStrategy.PN_KG_SUPPLEMENT
     positive_source_field: PositiveSource = PositiveSource.POSITIVE_PATHS
 
+
+
+def format_template(template_name: str, **kwargs: Any) -> str:    
+    question = kwargs.get('question', '')
+    entity = kwargs.get('entity', '')
+    history = kwargs.get('history')  # Expects a pre-formatted string or None
+    max_selection_count = kwargs.get('max_selection_count', 5)
+    prompt_content = "Based on the following information:\n"
+    prompt_content += f"- Question: {question}\n"
+    prompt_content += f"- Current Entity: {entity}\n"
+    
+    if history:
+        prompt_content += f"- Exploration History:\n{history.strip()}\n" # 使用 strip() 移除可能的前后空白
+
+    instruction = f"\nPlease generate up to {max_selection_count} relations from the Current Entity "
+    instruction += "that are most relevant to answering the Question"
+    
+    if history:
+        instruction += ", considering the Exploration History provided."
+    else:
+        instruction += "."
+    prompt_content += instruction + "\n"
+        
+    # 输出格式说明
+    prompt_content += "\nYour Generated Relations (one relation name per line):"
+    
+    return prompt_content
+
 def parse_path_to_segments(path_str: str) -> List[Tuple[str, str, str]]:
     """
     Parses a full path string into a list of (source, relation, target) segments.
@@ -79,7 +107,6 @@ def create_sft_example_with_history_and_options(
     prompt_available_relations: List[str], # 最终出现在提示中的关系选项
     gold_chosen_relations: List[str], # 这个状态下的“黄金”正面关系
     max_selection_count: int,
-    template_builder: KnowledgeGraphTemplates
 ) -> Optional[Dict[str, Any]]:
     """
     Create an SFT instruction example with relation options in the prompt
@@ -95,9 +122,8 @@ def create_sft_example_with_history_and_options(
     relation_options_lines = []
     rel_to_display_line: Dict[str, str] = {} # Map relation name to its display line like "[REL_0] relation_name"
 
-    for i, rel_name in enumerate(unique_prompt_available_relations):
-        rel_id_str = f"REL_{i}"
-        display_line = f"[{rel_id_str}] {rel_name}"
+    for rel_name in unique_prompt_available_relations:
+        display_line = f"{rel_name}"
         relation_options_lines.append(f"      {display_line}") # Indentation for prompt
         rel_to_display_line[rel_name] = display_line
     relation_options_str = "\n".join(relation_options_lines)
@@ -125,7 +151,7 @@ def create_sft_example_with_history_and_options(
     # We can modify the template in KnowledgeGraphTemplates or append here.
     # For now, let's assume template_builder.format_template creates the main body.
     # We will append the SFT specific instruction.
-    prompt = template_builder.format_template(template_name, **template_args)
+    prompt = format_template(template_name, **template_args)
 
 
     # Completion: Gold chosen relations that are ACTUALLY AVAILABLE in the prompt
@@ -154,7 +180,6 @@ def process_path_item_for_sft(
     kg: Optional[KnowledgeGraph], 
     item: Dict[str, Any], 
     config: ProcessingConfig, 
-    template_builder: KnowledgeGraphTemplates
 ) -> List[Dict[str, Any]]:
     question = item.get("question", "")
     sample_id = item.get("id", "unknown_sft_id")
@@ -273,7 +298,6 @@ def process_path_item_for_sft(
                 prompt_available_relations=final_relations_for_prompt_list,
                 gold_chosen_relations=current_gold_chosen_relations, 
                 max_selection_count=config.max_selection_count,
-                template_builder=template_builder
             )
             
             if example:
@@ -344,34 +368,13 @@ def create_sft_dataset(args: argparse.Namespace):
     else:
         logger.warning("KnowledgeGraph module not available. KG-dependent candidate strategies (kg_allhop, pn_kg_supplement) will not use KG data.")
 
-    template_builder_instance = None
-    if KnowledgeGraphTemplates:
-        try:
-            template_builder_instance = KnowledgeGraphTemplates()
-        except Exception as e:
-            logger.error(f"Failed to initialize KnowledgeGraphTemplates: {e}. Prompts will be basic.", exc_info=True)
-            # Fallback to a dummy template builder if needed, or handle error
-            class DummyTemplateBuilder:
-                def format_template(self, template_name, **kwargs):
-                    # Basic formatting, you'll need to adjust this significantly
-                    # Or ensure KnowledgeGraphTemplates is robust.
-                    q = kwargs.get("question","")
-                    e = kwargs.get("entity","")
-                    h = kwargs.get("history","")
-                    r = kwargs.get("relations","")
-                    return f"Question: {q}\nEntity: {e}\nHistory:\n{h}\nRelations:\n{r}"
-            template_builder_instance = DummyTemplateBuilder()
-    else:
-        logger.error("KnowledgeGraphTemplates module not available. Cannot format prompts.")
-        return # Cannot proceed without templates
-
     try:
         for item in tqdm(path_data, desc="Processing path items to SFT examples"):
             try:
                 if not isinstance(item, dict):
                     logger.warning(f"Skipping item as it's not a dictionary: {type(item)}")
                     continue
-                sft_examples_for_item = process_path_item_for_sft(kg_instance, item, config, template_builder_instance)
+                sft_examples_for_item = process_path_item_for_sft(kg_instance, item, config)
                 all_sft_examples.extend(sft_examples_for_item)
             except Exception as e_inner:
                 item_id_info = item.get('id', 'unknown_id') if isinstance(item, dict) else 'unknown_item_structure'

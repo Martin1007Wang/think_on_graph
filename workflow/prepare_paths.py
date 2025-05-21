@@ -254,7 +254,7 @@ def prepare_paths(args: argparse.Namespace):
             logger.info("Closing KnowledgeGraph connection.")
             kg.close()
 
-    if os.path.exists(temp_jsonl_output_path) and processed_items_count > 0:
+    if os.path.exists(temp_jsonl_output_path):
         logger.info(f"Finalizing outputs from {temp_jsonl_output_path}...")
         all_generated_path_data_from_jsonl: List[Dict[str, Any]] = []
         try:

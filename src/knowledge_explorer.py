@@ -62,7 +62,7 @@ class KnowledgeExplorer:
             path_manager=self.path_manager,
             max_workers=self.max_workers, # Can differ from KE's max_workers if needed
             llm_concurrency_limit=self.max_workers, # Default semaphore limit to max_workers
-            max_relation_selection_count=max_selection_count, # Pass the KE param
+            max_relation_selection_count= max_selection_count,
             min_cvts_for_parallel_processing=min_cvts_for_parallel # Pass the KE param
         )
         # --- END EntityExpander ---

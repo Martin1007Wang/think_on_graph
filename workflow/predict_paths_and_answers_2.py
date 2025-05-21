@@ -147,12 +147,9 @@ def initialize_models(args: argparse.Namespace, explore_model_class: type, predi
 
     num_gpus = torch.cuda.device_count()
     if num_gpus > 0:
-        logging.info(f"Found {num_gpus} GPU(s). Using device_map='{args.device_map}'.")
+        logging.info(f"Found {num_gpus} GPU(s). Using device_map='auto'.")
     else:
         logging.warning("No GPU available. Using CPU.")
-        if args.device_map not in ["cpu", "auto"]: # auto might still try GPU then fail, cpu is explicit
-            logging.warning(f"Device map set to '{args.device_map}' but no GPU found. Forcing to 'cpu'.")
-            args.device_map = "cpu"
 
     try:
         explore_model = explore_model_class(args)
@@ -353,7 +350,6 @@ if __name__ == "__main__":
     parser.add_argument('--explore_model_path', type=str, default=None, help="Path to the exploration model weights/directory (optional)")
     parser.add_argument('--predict_model_name', type=str, default='gcr-Llama-2-7b-chat-hf', help="Name of the registered prediction model")
     parser.add_argument('--predict_model_path', type=str, default=None, help="Path to the prediction model weights/directory (optional, defaults to explore_model_path if same model)")
-    parser.add_argument('--device_map', type=str, default="auto", help="Device mapping strategy for models (e.g., 'auto', 'cuda:0', 'cpu', 'balanced') passed to Hugging Face")
 
     # KG & Explorer Configuration
     parser.add_argument('--max_rounds', type=int, default=2, help="Maximum rounds of iterative reasoning in KnowledgeExplorer")
@@ -396,8 +392,8 @@ if __name__ == "__main__":
     # --- Programmatic Override for target_ids ---
     # This line now sets args.target_ids to a list.
     # The main() function has been updated to handle this case.
-    # args.target_ids = ["WebQTest-26", "WebQTest-1259", "WebQTest-264", "WebQTest-688", "WebQTest-189","WebQTest-179","WebQTest-71","WebQTest-278","WebQTest-751","WebQTest-202"]
-    # logging.info(f"Programmatically overriding target_ids to: {args.target_ids}")
+    args.target_ids = ["WebQTest-26", "WebQTest-1259", "WebQTest-264", "WebQTest-688", "WebQTest-189","WebQTest-179","WebQTest-71","WebQTest-278","WebQTest-751","WebQTest-202"]
+    logging.info(f"Programmatically overriding target_ids to: {args.target_ids}")
 
 
     main(args)

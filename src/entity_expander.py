@@ -6,31 +6,11 @@ from typing import Optional, List, Dict, Any, Tuple, Set, ClassVar, FrozenSet
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import concurrent.futures
-# Assuming these imports are correctly set up in your project
-try:
-    from src.knowledge_graph import KnowledgeGraph
-    from src.model_interface import ModelInterface # Assumes uses LLMOutputParserOptimized
-    from src.path_manager import PathManager
-    from src.utils.data_utils import EntityExpansion, EntityRelation
-except ImportError:
-    # Dummy classes for standalone execution/testing
-    class KnowledgeGraph:
-        def get_related_relations(self, node, direction): return []
-        def get_target_entities(self, entity, relation, direction): return []
-    class ModelInterface:
-        def select_relations(self, **kwargs): return []
-        def select_attributes(self, **kwargs): return None # Important for CVT path
-        # Dummy parser attribute for init check
-        class DummyParser:
-            def parse_attribute_selection(self, output, **kwargs): return None
-        parser = DummyParser()
 
-    class PathManager:
-        def is_coded_entity(self, entity: str) -> bool: return entity.startswith("CVT_") or entity.startswith("m.") # Example dummy logic
-    class EntityExpansion:
-        def __init__(self, entity): self.entity = entity; self.relations: List[EntityRelation] = []
-    class EntityRelation:
-        def __init__(self, relation, targets, metadata=None): self.relation = relation; self.targets = targets; self.metadata = metadata if metadata else {}
+from src.knowledge_graph import KnowledgeGraph
+from src.model_interface import ModelInterface # Assumes uses LLMOutputParserOptimized
+from src.path_manager import PathManager
+from src.utils.data_utils import EntityExpansion, EntityRelation
 
 logger = logging.getLogger(__name__)
 # Basic config if not set externally
@@ -49,8 +29,8 @@ class EntityExpander:
                  explore_model_interface: ModelInterface, # Used for relation selection
                  predict_model_interface: ModelInterface, # Used for CVT attribute selection
                  path_manager: PathManager,
-                 max_workers: int = 8,
-                 llm_concurrency_limit: int = 8,
+                 max_workers: int = 16,
+                 llm_concurrency_limit: int = 1000,
                  max_relation_selection_count: int = 5, # Renamed for clarity
                  min_cvts_for_parallel_processing: int = 3): # Adjusted default slightly, tune as needed
 

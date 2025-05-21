@@ -99,7 +99,8 @@ def create_relation_selection_example_with_history(
     relation_options_lines = []
     rel_to_display_line: Dict[str, str] = {}
     for i, rel_name in enumerate(unique_prompt_available_relations):
-        display_line = f"{rel_name}"
+        rel_id_str = f"REL_{i}"
+        display_line = f"[{rel_id_str}] {rel_name}"
         relation_options_lines.append(f"      {display_line}")
         rel_to_display_line[rel_name] = display_line
     relation_options_str = "\n".join(relation_options_lines)

@@ -36,56 +36,37 @@ class PromptFormatter(Protocol):
         ...
 
 class KnowledgeGraphTemplates:
-    RELATION_SELECTION: ClassVar[str] = """**Role:** Knowledge Graph Exploration Strategist
+    RELATION_SELECTION: ClassVar[str] = """**Role:** KG Strategist
+**Objective:** Identify paths to answer: "{question}"
+**Current Entity:** "{entity}"
 
-**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question'. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
-
-**Context:**
-* Question: `{question}`
-* Current Entity: `{entity}`
-* Available Relations (from Current Entity):
+**Task:** From 'Available Relations' below, select **up to {max_selection_count}** distinct relations.
+Choose relations MOST LIKELY to lead to relevant information for the Objective.
+**Available Relations for "{entity}":**
     ```
     {relations}
     ```
-**Task:**
-1.  Review the context and the 'Available Relations' list.
-2.  Evaluate the 'Available Relations' list. Choose the {max_selection_count} most promising lines from the list that represent the best relations to explore.
-3.  **CRITICAL: Output Requirements:**
-    * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.
-    * List one selected line per line in your response.
-    * **Example Output Format (if selecting two lines):**
-        ```
-        [REL_9] people.person.profession
-        [REL_12] music.artist.genre
-        ```
-    * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
+**Output Requirements (CRITICAL):**
+* Respond ONLY with the **exact, complete lines** selected from 'Available Relations'.
+* One selected relation per line.
+* NO other text, explanations, or comments.
 
 **Your Selection:**"""
 
-    RELATION_SELECTION_WITH_HISTORY: ClassVar[str] = """**Role:** Knowledge Graph Exploration Strategist
-
-**Objective:** Select the most promising relations to explore next from the 'Current Entity' to help answer the 'Question'. Prioritize relations likely to lead towards the answer, possibly over multiple exploration steps.
-
-**Context:**
-* Question: `{question}`
-* Current Entity: `{entity}`
-* Exploration History: `{history}`
-* Available Relations (from Current Entity):
+    RELATION_SELECTION_WITH_HISTORY: ClassVar[str] = """**Role:** KG Strategist
+**Objective:** Identify paths to answer: "{question}"
+**Current Entity:** "{entity}"
+**Past Steps & Findings:** "{history}"
+**Task:** From 'Available Relations' below, select **up to {max_selection_count}** distinct relations.
+Choose relations MOST LIKELY to lead to relevant information for the Objective.
+**Available Relations for "{entity}":**
     ```
     {relations}
     ```
-**Task:**
-1.  Review the context and the 'Available Relations' list.
-2.  Evaluate the 'Available Relations' list. Choose the {max_selection_count} most promising lines from the list that represent the best relations to explore.
-3.  **CRITICAL: Output Requirements:**
-    * Respond ONLY with the **exact, complete lines** you selected from the 'Available Relations' list.
-    * List one selected line per line in your response.
-    * **Example Output Format (if selecting two lines):**
-        ```
-        [REL_9] people.person.profession
-        [REL_12] music.artist.genre
-        ```
-    * ABSOLUTELY NO other text, explanations, commentary, or modifications to the selected lines.
+**Output Requirements (CRITICAL):**
+* Respond ONLY with the **exact, complete lines** selected from 'Available Relations'.
+* One selected relation per line.
+* NO other text, explanations, or comments.
 
 **Your Selection:**"""
     

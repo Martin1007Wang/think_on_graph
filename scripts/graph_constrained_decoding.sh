@@ -30,8 +30,8 @@ SPLIT="test"
 PREDICT_PATH="results/IterativeReasoning_v13"
 
 # 探索模型参数 - 探索阶段仍使用原模型
-EXPLORE_MODEL_NAME="lora_webqsp_pn_only_shortest_paths"
-EXPLORE_MODEL_PATH="/mnt/wangjingxiong/think_on_graph/dpo_models_v4/lora_webqsp_pn_only_shortest_paths/0e9e39f249a16976918f6564b8830bc894c89659_epoch10_sigmoid_beta0.1_lora_r8/merged_model"
+EXPLORE_MODEL_NAME="lora_naive_instruction_dataset_webqsp_pn_kg_supplement_shortest_paths"
+EXPLORE_MODEL_PATH="/mnt/wangjingxiong/think_on_graph/sft_models_v4/lora_naive_instruction_dataset_webqsp_pn_kg_supplement_shortest_paths/0e9e39f249a16976918f6564b8830bc894c89659_epoch5_lora_r8/merged_model"
 
 # EXPLORE_MODEL_NAME="GCR-lora-sft_v3_with_label-Llama-3.1-8B-Instruct"
 # EXPLORE_MODEL_PATH="/mnt/wangjingxiong/think_on_graph/sft_models_v3/GCR-lora-sft_v3_with_label-Llama-3.1-8B-Instruct/merged_model"
