@@ -40,7 +40,8 @@ def main(prediction_paths: List[str]) -> None:
 if __name__ == "__main__":
     # List of prediction files to evaluate
     paths_to_evaluate: List[str] = [
-        "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v13/RoG-cwq/lora_webqsp_pn_only_shortest_paths/deepseek-chat/iterative-rounds2-topk5/predictions.jsonl",
-        # Add more paths here if needed
+        "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v13/RoG-cwq/lora_naive_preference_dataset_combined_webqsp_pn_only_shortest_paths_epoch_1/deepseek-chat/iterative-rounds2-topk3/predictions.jsonl",
+        "/mnt/wangjingxiong/think_on_graph/results/KGQA/RoG-cwq/deepseek-chat/test/add_path_results_GenPaths_RoG-cwq_GCR-Qwen2-7B-Instruct_test_zero-shot-gr_581f65c9473a5160adf85530c0451637_no_dup/predictions.jsonl",
+        ""
     ]
     main(paths_to_evaluate)

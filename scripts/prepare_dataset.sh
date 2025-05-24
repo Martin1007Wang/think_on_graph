@@ -2,7 +2,7 @@
 export CUDA_VISIBLE_DEVICES=1
 DATA_PATH="rmanluo/RoG-cwq"
 DATASET_NAME="RoG-cwq" # 通常与DATA_PATH的核心部分相同，用于缓存等
-SPLIT="train"
+SPLIT="test"
 OUTPUT_PATH="data/processed" # 基础输出路径
 
 CLEANED_DATA_PATH=$(echo "${DATA_PATH}" | tr '/' '_') 

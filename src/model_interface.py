@@ -64,73 +64,72 @@ class ModelInterface:
     def _select_items(self, item_type: str, items: List[str], max_items: Optional[int],
                       id_prefix: str, template_name: str,
                       parser_method_name: str,
-                      fallback_on_error: bool = False, # Default changed to False
-                      generation_mode: str = "beam", # Allow overriding generation params
+                      fallback_on_error: bool = False,
+                      generation_mode: str = "beam",
                       num_beams: int = 4,
-                      **template_args) -> List[str]:
+                      **template_args: Any) -> List[str]:
         if not items:
             logger.debug(f"No {item_type}s provided for selection. Returning empty list.")
             return []
 
-        # If no selection needed (limit is None or not exceeded), return all items
-        # Handle max_items == 0 explicitly.
         if max_items is not None and max_items <= 0:
-             return []
+            logger.debug(f"max_items is {max_items}. Returning empty list.")
+            return []
         if max_items is None or len(items) <= max_items:
             logger.debug(f"Number of {item_type}s ({len(items)}) is within limit ({max_items}), returning all without LLM call.")
             return items
 
-        # --- Prepare items for LLM prompt ---
-        # Use OrderedDict to maintain consistent order for IDs if items are duplicated (though list should handle order)
         item_dict = OrderedDict((f"{id_prefix}_{i}", item) for i, item in enumerate(items))
         item_options = "\n".join(f"[{item_id}] {item}" for item_id, item in item_dict.items())
 
-        # Prepare template arguments for the selection prompt
         selection_template_args = template_args.copy()
         selection_template_args.update({
-            item_type + "s": item_options, # e.g., relations=...
-            item_type + "_ids": ", ".join(item_dict.keys()), # e.g., relation_ids=...
+            item_type + "s": item_options,
+            item_type + "_ids": ", ".join(item_dict.keys()),
             "max_selection_count": max_items
         })
 
-        # --- Perform LLM Generation and Parsing ---
         selected_output: Optional[str] = None
-        parsed_selection: Optional[List[str]] = None # Holds results from parser
+        parsed_selection: Optional[List[str]] = None
         error_occurred = False
         error_message = ""
 
         try:
-            # Step 1: Generate LLM output
-            selected_output = self.generate_output(
+            # Ensure self.generate_output exists if this is a class method
+            if not hasattr(self, 'generate_output'):
+                raise AttributeError("Instance of YourClassName must have a 'generate_output' method.")
+            
+            selected_output = self.generate_output( # type: ignore
                 template_name,
                 generation_mode=generation_mode,
                 num_beams=num_beams,
                 **selection_template_args
             )
             if selected_output is None:
-                raise ValueError(f"LLM generation failed for {item_type} selection.") # Raise specific error
+                raise ValueError(f"LLM generation failed for {item_type} selection (returned None).")
 
-            # Step 2: Parse the output
-            if not hasattr(self.parser, parser_method_name):
-                raise AttributeError(f"Parser method '{parser_method_name}' not found in {self.parser.__class__.__name__}")
+            # Ensure self.parser and the method exist
+            if not hasattr(self, 'parser'):
+                raise AttributeError("Instance of YourClassName must have a 'parser' attribute.")
+            if not hasattr(self.parser, parser_method_name): # type: ignore
+                raise AttributeError(f"Parser method '{parser_method_name}' not found in {self.parser.__class__.__name__}") # type: ignore
 
-            parser_method: Callable = getattr(self.parser, parser_method_name)
+            parser_method: Callable[[str, Dict[str, str]], Optional[List[str]]] = getattr(self.parser, parser_method_name) # type: ignore
             parsed_selection = parser_method(selected_output, item_dict=item_dict)
 
-            if parsed_selection is None: # Parser explicitly returned None indicating failure
-                 raise ValueError(f"Parsing failed for {item_type} selection (parser returned None).")
+            if parsed_selection is None:
+                raise ValueError(f"Parsing failed for {item_type} selection (parser returned None).")
             if not isinstance(parsed_selection, list):
-                 logger.warning(f"Parser method '{parser_method_name}' did not return a list, got {type(parsed_selection)}. Treating as no selection.")
-                 parsed_selection = []
-
+                logger.warning(f"Parser method '{parser_method_name}' did not return a list, got {type(parsed_selection)}. Treating as no selection.")
+                parsed_selection = []
 
         except (ValueError, AttributeError, Exception) as e:
             error_occurred = True
             error_message = str(e)
-            logger.error(f"Error during {item_type} selection generation or parsing: {e}", exc_info=isinstance(e, Exception) and not isinstance(e, (ValueError, AttributeError)))
+            # Log full traceback for unexpected Exceptions, simpler log for ValueError/AttributeError
+            log_exc_info = isinstance(e, Exception) and not isinstance(e, (ValueError, AttributeError))
+            logger.error(f"Error during {item_type} selection generation or parsing: {e}", exc_info=log_exc_info)
 
-
-        # --- Process Parsed Results or Handle Fallback ---
         if error_occurred:
             if fallback_on_error:
                 logger.warning(f"Using fallback due to error ({error_message}): returning first {max_items} {item_type}s.")
@@ -138,45 +137,36 @@ class ModelInterface:
             else:
                 logger.warning(f"Selection failed ({error_message}) and fallback is disabled. Returning empty list.")
                 return []
-
-        # --- Map parsed results back to original items (if no error occurred) ---
         final_selections: List[str] = []
         seen_items: Set[str] = set()
 
-        if not parsed_selection: # Handle empty list from parser
-             logger.warning(f"LLM output parsed, but no {item_type}s were identified by the parser.")
-             # Fallback logic moved here for clarity if needed
+        if not parsed_selection: # Handles empty list from parser (e.g., LLM chose nothing)
+            logger.info(f"LLM output parsed, but no {item_type}s were identified/selected by the parser (parsed_selection was empty).")
         else:
-            for selection in parsed_selection:
-                item = None
-                if selection in item_dict: # Check if parser returned an ID
-                    item = item_dict[selection]
-                elif selection in items: # Check if parser returned the item string directly
-                    # This assumes the parser might return raw strings that were in the original list
-                    item = selection
+            for selection_key_or_value in parsed_selection:
+                item_value: Optional[str] = None
+                if selection_key_or_value in item_dict: # Parser returned an ID
+                    item_value = item_dict[selection_key_or_value]
+                elif selection_key_or_value in items: # Parser returned the item string directly
+                    item_value = selection_key_or_value
                 else:
-                    logger.warning(f"Parsed selection '{selection}' is neither a valid ID nor an original item string. Ignoring.")
+                    logger.warning(f"Parsed selection '{selection_key_or_value}' is neither a valid ID nor an original item string. Ignoring.")
                     continue
 
-                # Add if valid, unique, and within count limit
-                if item and item not in seen_items:
-                    final_selections.append(item)
-                    seen_items.add(item)
-                    if len(final_selections) >= max_items:
-                        break # Stop once limit is reached
-
+                if item_value and item_value not in seen_items:
+                    final_selections.append(item_value)
+                    seen_items.add(item_value)
+                    if len(final_selections) >= max_items: # type: ignore
+                        break 
+        
         # --- Final Decision ---
         if final_selections:
             logger.info(f"LLM selection successful. Selected {len(final_selections)}/{max_items} {item_type}s.")
             return final_selections
         else:
-            # Reached if parsing succeeded but yielded no valid/unique items after mapping
-            logger.warning(f"Selection processing yielded no valid final {item_type}s (parsed: {parsed_selection}).")
-            if fallback_on_error:
-                logger.info(f"Using fallback: returning first {max_items} {item_type}s.")
-                return items[:max_items]
-            else:
-                return []
+            logger.warning(f"Selection processing (without error) yielded no valid final {item_type}s "
+                           f"(parsed items: {parsed_selection if parsed_selection else '[]'}). Returning empty list.")
+            return []
 
     def select_relations(self, entity: str, available_relations: List[str], question: str,
                          history: str = "", max_selection_count: int = 5,
@@ -185,7 +175,7 @@ class ModelInterface:
         template_name = "relation_selection_with_history" if history else "relation_selection"
         template_args = {"question": question, "entity": entity}
         if history: template_args["history"] = history
-
+        available_relations = [r.strip() for r in available_relations if isinstance(r, str) and r.strip()]
         return self._select_items(
             item_type="relation",
             items=available_relations,

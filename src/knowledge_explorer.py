@@ -417,19 +417,6 @@ class KnowledgeExplorer:
                          self.logger.info(f"[{question_id}] Fallback context: History limit exceeded.")
                     # **No destructive modifications needed here**
 
-            # --- Final check on final_answer_data before formatting ---
-            if not isinstance(final_answer_data, dict):
-                 self.logger.error(f"[{question_id}] final_answer_data is not a dict after processing (type: {type(final_answer_data)}). Using emergency default.")
-                 # Provide a structure that create_question_result can handle
-                 final_answer_data = {
-                      "answer": "Error: Failed to determine final answer data.",
-                      "reasoning": "Processing error led to invalid answer data structure."
-                 }
-                 # Ensure flags are consistent
-                 fallback_used = True
-                 answer_found = False
-
-
             # --- Create Final Result ---
             if not hasattr(self, 'formatter') or not self.formatter:
                  self.logger.critical(f"[{question_id}] Result formatter missing!")

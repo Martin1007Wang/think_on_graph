@@ -6,8 +6,8 @@ from collections import defaultdict
 from typing import Dict, List, Any, Tuple, Set
 
 # 定义目录路径
-dir1 = "/mnt/wangjingxiong/think_on_graph/results/KGQA/RoG-webqsp/deepseek-v3/test/add_path_results_GenPaths_RoG-webqsp_GCR-Llama3.1-8B-Instruct_test_zero-s_7203fd3e7d7d8a81e6f934b83b57acf4_no_dup"
-dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v10/RoG-webqsp/GCR-lora-dpo_v3_with_label-Llama-3.1-8B-Instruct/deepseek-chat/iterative-rounds2-topk5"
+dir1 = "/mnt/wangjingxiong/think_on_graph/results/KGQA/RoG-cwq/deepseek-chat/test/add_path_results_GenPaths_RoG-cwq_GCR-Qwen2-7B-Instruct_test_zero-shot-gr_581f65c9473a5160adf85530c0451637_no_dup"
+dir2 = "/mnt/wangjingxiong/think_on_graph/results/IterativeReasoning_v13/RoG-cwq/lora_naive_preference_dataset_combined_webqsp_pn_only_shortest_paths_epoch_1/deepseek-chat/iterative-rounds2-topk3"
 
 def load_jsonl(file_path: str) -> List[Dict[str, Any]]:
     """加载JSONL文件内容"""

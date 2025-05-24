@@ -94,7 +94,7 @@ class EntityExpander:
                 named_entities, coded_entities = self._separate_entities(target_list)
                 if named_entities: expansion_result.relations.append(EntityRelation(relation=relation, targets=named_entities))
                 if coded_entities:
-                    history_to_cvt_base = f"{history} --> {entity} --[{relation}]-->"
+                    history_to_cvt_base = f"{history} --> {entity} --[{relation}]-->" if history else f"{entity} --[{relation}]-->"
                     for cvt_id in coded_entities: potential_cvt_tasks.append((relation, cvt_id, question, f"{history_to_cvt_base}{cvt_id}"))
             except Exception as e: logger.error(f"Error processing relation '{relation}' targets for '{entity}': {e}", exc_info=True)
 
@@ -261,10 +261,7 @@ class EntityExpander:
                 if not hasattr(self.explore_model, 'select_relations') or not callable(getattr(self.explore_model, 'select_relations')):
                      logger.error(f"Explore model missing 'select_relations'."); return []
                 selected = self.explore_model.select_relations(entity=entity, available_relations=relations, question=question, history=history, max_selection_count=max_selection_count)
-                if selected is None: return []
-                if not isinstance(selected, list): selected = [selected] if isinstance(selected, str) else []
-                validated = [s.strip() for s in selected if isinstance(s, str) and s.strip() and s.strip() in relations]
-                return validated[:max_selection_count]
+                return selected
             except Exception as e: logger.error(f"Exception during LLM relation selection for '{entity}': {e}", exc_info=True); return []
             finally: logger.debug(f"Semaphore released for relation selection (Entity: {entity})")
 

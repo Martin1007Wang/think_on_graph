@@ -4,8 +4,8 @@ import os
 import re
 from typing import List, Tuple, Dict, Any, Set, Optional
 from dataclasses import dataclass, field
-from datasets import load_dataset, Dataset # type: ignore
-from tqdm import tqdm # type: ignore
+from datasets import load_dataset, Dataset
+from tqdm import tqdm
 import logging
 from collections import defaultdict
 import random
@@ -359,43 +359,65 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
     return preference_examples
 
 def create_preference_dataset(args: argparse.Namespace, template_builder: KnowledgeGraphTemplates) -> None:
-    logger.info(f"Loading path dataset from: {args.input_path}")
-    
-    path_data: List[Dict[str, Any]]
-    if args.input_path.endswith('.json') or args.input_path.endswith('.jsonl'):
-        try:
-            with open(args.input_path, 'r', encoding='utf-8') as f:
-                if args.input_path.endswith('.jsonl'):
-                    path_data = [json.loads(line) for line in f]
-                else: # .json
-                    path_data = json.load(f)
-            if not isinstance(path_data, list): # Ensure top level is a list
-                logger.error(f"File {args.input_path} does not contain a list of items at the top level.")
-                return
-        except json.JSONDecodeError:
-            logger.error(f"Could not decode JSON from {args.input_path}.", exc_info=True)
-            return
-        except FileNotFoundError:
-            logger.error(f"Input file not found: {args.input_path}")
-            return
-    else: # Hugging Face dataset directory
-        try:
-            hf_dataset = Dataset.load_from_disk(args.input_path)
-            path_data = list(hf_dataset) # Convert to list of dicts
-        except FileNotFoundError:
-            logger.error(f"Hugging Face dataset directory not found: {args.input_path}")
-            return
-        except Exception as e: # Catch other potential errors from load_from_disk
-            logger.error(f"Error loading Hugging Face dataset from {args.input_path}: {e}", exc_info=True)
-            return
-    
-    total_items = len(path_data)
-    logger.info(f"Loaded {total_items} path items from input.")
-    
+    # --- START MODIFICATION FOR MULTIPLE INPUT FILES ---
+    logger.info(f"Attempting to load path data from input files: {args.input_files}")
+    all_path_data: List[Dict[str, Any]] = []
+
+    for input_file_path in args.input_files:
+        logger.info(f"Processing input source: {input_file_path}")
+        current_file_data: List[Dict[str, Any]] = []
+        if os.path.isdir(input_file_path): # Assume it's a Hugging Face dataset directory
+            try:
+                hf_dataset = Dataset.load_from_disk(input_file_path)
+                current_file_data = list(hf_dataset)
+            except FileNotFoundError:
+                logger.error(f"Hugging Face dataset directory not found: {input_file_path}. Skipping this source.")
+                continue
+            except Exception as e:
+                logger.error(f"Error loading Hugging Face dataset from {input_file_path}: {e}. Skipping this source.", exc_info=True)
+                continue
+        elif input_file_path.endswith('.json') or input_file_path.endswith('.jsonl'):
+            try:
+                with open(input_file_path, 'r', encoding='utf-8') as f:
+                    if input_file_path.endswith('.jsonl'):
+                        current_file_data = [json.loads(line) for line in f if line.strip()]
+                    else: # .json
+                        loaded_json = json.load(f)
+                        if not isinstance(loaded_json, list):
+                            logger.error(f"File {input_file_path} (JSON) does not contain a list of items at the top level. Skipping this file.")
+                            continue
+                        current_file_data = loaded_json
+            except json.JSONDecodeError:
+                logger.error(f"Could not decode JSON from {input_file_path}. Skipping this file.", exc_info=True)
+                continue
+            except FileNotFoundError:
+                logger.error(f"Input file not found: {input_file_path}. Skipping this file.")
+                continue
+        else:
+            logger.warning(f"Unsupported file type or path structure for input: {input_file_path}. Skipping. Please provide .json, .jsonl, or a Hugging Face dataset directory.")
+            continue
+
+        # Basic validation for items in current_file_data
+        if not isinstance(current_file_data, list) or not all(isinstance(item, dict) for item in current_file_data):
+            logger.warning(f"Data loaded from {input_file_path} is not a list of dictionaries as expected. Skipping this source.")
+            continue
+        
+        all_path_data.extend(current_file_data)
+        logger.info(f"Loaded {len(current_file_data)} items from {input_file_path}. Total items so far: {len(all_path_data)}.")
+
+    if not all_path_data:
+        logger.error("No data loaded from any input files. Exiting.")
+        return
+
+    total_items = len(all_path_data)
+    logger.info(f"Successfully loaded a total of {total_items} path items from all specified input sources.")
+    # --- END MODIFICATION FOR MULTIPLE INPUT FILES ---
+
     if args.num_samples > 0 and args.num_samples < total_items:
-        path_data = path_data[:args.num_samples]
-        logger.info(f"Processing a subset of {len(path_data)} samples based on --num_samples.")
-    
+        # path_data = path_data[:args.num_samples] # Original line
+        all_path_data = all_path_data[:args.num_samples] # Use the combined list
+        logger.info(f"Processing a subset of {len(all_path_data)} samples based on --num_samples.")
+
     config = ProcessingConfig(
         max_selection_count=args.max_selection_count,
         enable_relation_sampling=args.enable_relation_sampling,
@@ -404,22 +426,22 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
         candidate_strategy=CandidateStrategy(args.candidate_strategy),
         positive_source_field=PositiveSource(args.positive_source_field)
     )
-    
+
     logger.info(f"Starting DPO example generation with config: {config}")
     all_preference_examples: List[Dict[str, Any]] = []
-    
-    kg_instance: Optional[KnowledgeGraph] = None 
+
+    kg_instance: Optional[KnowledgeGraph] = None
     if args.candidate_strategy != CandidateStrategy.PN_ONLY.value:
         try:
-            # Check if KnowledgeGraph is a class and has an __init__ method
-            if isinstance(KnowledgeGraph, type) and hasattr(KnowledgeGraph, '__init__'): 
+            if isinstance(KnowledgeGraph, type) and hasattr(KnowledgeGraph, '__init__'):
                 kg_instance = KnowledgeGraph(args.neo4j_uri, args.neo4j_user, args.neo4j_password)
-            else:
+            else: # Should not happen if mock or real class is defined
                 logger.warning("KnowledgeGraph class not available or not a proper class, KG-dependent strategies will be limited.")
         except Exception as e:
             logger.error(f"Failed to initialize KnowledgeGraph: {e}. KG-dependent strategies will be limited.", exc_info=True)
-            
-    for item in tqdm(path_data, desc="Processing path items to DPO examples"):
+
+    # Process the combined data
+    for item in tqdm(all_path_data, desc="Processing path items to DPO examples"):
         try:
             if not isinstance(item, dict):
                 logger.warning(f"Skipping item as it is not a dictionary: {type(item)}")
@@ -435,7 +457,7 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
 
     if all_preference_examples:
         logger.info(f"DPO example generation complete. Total DPO examples: {len(all_preference_examples)}")
-        
+
         output_name_parts = [
             args.base_output_name,
             f"cand_{config.candidate_strategy.value}",
@@ -458,9 +480,9 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
             logger.info(f"DPO preference dataset saved to JSON Lines: {json_output_path}")
         except (IOError, TypeError) as e:
             logger.error(f"Failed to save DPO preference dataset to JSON Lines: {e}", exc_info=True)
-        
+
         try:
-            if all(isinstance(ex, dict) for ex in all_preference_examples): # Ensure all items are dicts
+            if all(isinstance(ex, dict) for ex in all_preference_examples):
                 hf_preference_dataset = Dataset.from_list(all_preference_examples)
                 hf_preference_dataset.save_to_disk(output_dir)
                 logger.info(f"DPO preference dataset saved to Hugging Face disk format: {output_dir}")
@@ -468,20 +490,21 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
                 logger.error("Not all generated examples are dictionaries, cannot save to Hugging Face disk format.")
         except Exception as e:
             logger.error(f"Failed to save DPO preference dataset to Hugging Face disk format in {output_dir}: {e}", exc_info=True)
-            if os.path.exists(json_output_path): # Inform user if JSONL save was successful
+            if os.path.exists(json_output_path):
                 logger.info(f"JSON Lines save to {json_output_path} might still be available.")
     else:
-        logger.warning("No DPO preference examples were collected. Nothing to save.")
-
+        logger.error("No preference examples generated. Exiting.")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create DPO preference dataset from path-enhanced data, with history and relation sampling, using generation prompts.")
-    parser.add_argument('--input_path', type=str, required=True,
-                        help='Input path-enhanced dataset file (e.g., data.json, data.jsonl) or Hugging Face dataset directory.')
+    # --- MODIFIED ARGUMENT ---
+    parser.add_argument('--input_files', type=str, required=True, nargs='+',
+                        help='One or more input path-enhanced dataset files (e.g., data1.json, data2.jsonl) or Hugging Face dataset directories.')
+    # --- END MODIFIED ARGUMENT ---
     parser.add_argument('--output_path', type=str, default='./data/processed_dpo',
                         help='Base output directory for the new DPO dataset.')
     parser.add_argument('--base_output_name', type=str, default='dpo_prefs',
                         help='Base name for the output DPO preference dataset directory (strategy/source/prompt_style info will be appended).')
-    
+
     parser.add_argument('--candidate_strategy', type=str, default=CandidateStrategy.PN_KG_SUPPLEMENT.value,
                         choices=[cs.value for cs in CandidateStrategy],
                         help='Strategy for constructing candidate relations for deriving chosen/rejected responses.')
@@ -499,23 +522,21 @@ if __name__ == "__main__":
                         help='Number of distractor relations to sample if sampling is triggered or PN_KG_SUPPLEMENT is active.')
 
     parser.add_argument('--num_samples', type=int, default=-1,
-                        help='Maximum number of items to process from the input path_data (-1 for all).')
+                        help='Maximum number of items to process from the combined input path_data (-1 for all).')
     parser.add_argument('--neo4j_uri', type=str, default=os.getenv('NEO4J_URI', 'bolt://localhost:7687'), help='Neo4j URI')
     parser.add_argument('--neo4j_user', type=str, default=os.getenv('NEO4J_USER', 'neo4j'), help='Neo4j username')
     parser.add_argument('--neo4j_password', type=str, default=os.getenv('NEO4J_PASSWORD', 'password'), help='Neo4j password')
-    
+
     args = parser.parse_args()
 
     template_builder_instance = None
-    # Ensure KnowledgeGraphTemplates is a class and can be instantiated
-    if isinstance(KnowledgeGraphTemplates, type) and callable(KnowledgeGraphTemplates): 
+    if isinstance(KnowledgeGraphTemplates, type) and callable(KnowledgeGraphTemplates):
         try:
             template_builder_instance = KnowledgeGraphTemplates()
         except Exception as e:
-            logger.error(f"Failed to initialize KnowledgeGraphTemplates: {e}. Ensure 'src.template.KnowledgeGraphTemplates' is correctly defined and callable.")
-            exit(1) 
+            logger.error(f"Failed to initialize KnowledgeGraphTemplates: {e}. Ensure mock or 'src.template.KnowledgeGraphTemplates' is correctly defined and callable.")
+            exit(1)
     else:
-        # This will occur if the mock is not defined as a class, or if the original import failed and the mock is not a class.
         logger.error("KnowledgeGraphTemplates class definition not found or not callable. Cannot proceed.")
         exit(1)
 

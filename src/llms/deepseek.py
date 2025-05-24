@@ -20,7 +20,7 @@ def get_token_limit(model='deepseek-chat'):
 class SiliconFlowLLM(BaseLanguageModel):
     # 模型名称映射
     MODELS = {
-        'deepseek-chat': 'deepseek-chat'
+        'deepseek-chat': 'deepseek-ai/DeepSeek-V3'
     }
 
     @staticmethod
@@ -39,7 +39,8 @@ class SiliconFlowLLM(BaseLanguageModel):
         self.maximun_token = get_token_limit(self.model_name)
         self.system_prompt = "You are a knowledge graph reasoning expert. Your task is to provide clear and precise answers based on the information provided."
         # 从命令行参数获取API密钥，如果没有则从环境变量获取
-        self.api_key = args.deepseek_api_key if hasattr(args, 'deepseek_api_key') and args.deepseek_api_key else os.environ.get('DEEPSEEK_API_KEY')
+        # self.api_key = args.deepseek_api_key if hasattr(args, 'deepseek_api_key') and args.deepseek_api_key else os.environ.get('DEEPSEEK_API_KEY')
+        self.api_key = os.environ.get('SILICONFLOW_API_KEY')
         
         if not self.api_key:
             logger.warning("DeepSeek API Key not found in arguments or environment variables. API calls will likely fail.")
@@ -60,7 +61,8 @@ class SiliconFlowLLM(BaseLanguageModel):
             # 直接使用DeepSeek官方示例中的方式创建客户端
             client = OpenAI(
                 api_key=self.api_key,
-                base_url="https://api.deepseek.com"
+                # base_url="https://api.deepseek.com"
+                base_url="https://api.siliconflow.cn/v1"
             )
             self.client = client
             logger.info(f"Successfully initialized DeepSeek client with API key: {self.api_key[:4]}...{self.api_key[-4:] if self.api_key and len(self.api_key) > 8 else '****'}")

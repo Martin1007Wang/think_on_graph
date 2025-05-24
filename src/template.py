@@ -40,16 +40,25 @@ class KnowledgeGraphTemplates:
 **Objective:** Identify paths to answer: "{question}"
 **Current Entity:** "{entity}"
 
-**Task:** From 'Available Relations' below, select **up to {max_selection_count}** distinct relations.
-Choose relations MOST LIKELY to lead to relevant information for the Objective.
+**Task:** From the 'Available Relations' listed below, select **up to {max_selection_count}** distinct relations.
+You MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.
+The relations you select MUST come EXACTLY from the 'Available Relations' list provided.
+
 **Available Relations for "{entity}":**
     ```
     {relations}
     ```
+    (These are the ONLY relations you can choose from. For instance, if `[REL_0] common.topic.alias` is listed, you must output `[REL_0] common.topic.alias` if selected. Do NOT invent or modify relations, such as `common.topic.aliases` (plural) if it's not in the list.)
+
 **Output Requirements (CRITICAL):**
-* Respond ONLY with the **exact, complete lines** selected from 'Available Relations'.
-* One selected relation per line.
-* NO other text, explanations, or comments.
+* Respond ONLY with the selected relations. NO other text, explanations, or comments.
+* Each selected relation MUST be an **exact, verbatim copy** of a complete line from the 'Available Relations' list above. This includes its identifier (e.g., `[REL_X]`).
+* Output EACH selected relation on a **new line**.
+* DO NOT use any surrounding characters like Python list brackets (`[]`) or quotes around the lines.
+
+**Example of Correct Output Format (if REL_A and REL_B were selected):**
+[REL_A] chosen.relation.example_one
+[REL_B] another.chosen.relation
 
 **Your Selection:**"""
 
@@ -57,19 +66,29 @@ Choose relations MOST LIKELY to lead to relevant information for the Objective.
 **Objective:** Identify paths to answer: "{question}"
 **Current Entity:** "{entity}"
 **Past Steps & Findings:** "{history}"
-**Task:** From 'Available Relations' below, select **up to {max_selection_count}** distinct relations.
-Choose relations MOST LIKELY to lead to relevant information for the Objective.
+
+**Task:** From the 'Available Relations' listed below, select **up to {max_selection_count}** distinct relations.
+You MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.
+The relations you select MUST come EXACTLY from the 'Available Relations' list provided.
+
 **Available Relations for "{entity}":**
     ```
     {relations}
     ```
+    (These are the ONLY relations you can choose from. For instance, if `[REL_0] common.topic.alias` is listed, you must output `[REL_0] common.topic.alias` if selected. Do NOT invent or modify relations, such as `common.topic.aliases` (plural) if it's not in the list.)
+
 **Output Requirements (CRITICAL):**
-* Respond ONLY with the **exact, complete lines** selected from 'Available Relations'.
-* One selected relation per line.
-* NO other text, explanations, or comments.
+* Respond ONLY with the selected relations. NO other text, explanations, or comments.
+* Each selected relation MUST be an **exact, verbatim copy** of a complete line from the 'Available Relations' list above. This includes its identifier (e.g., `[REL_X]`).
+* Output EACH selected relation on a **new line**.
+* DO NOT use any surrounding characters like Python list brackets (`[]`) or quotes around the lines.
+
+**Example of Correct Output Format (if REL_A and REL_B were selected):**
+[REL_A] chosen.relation.example_one
+[REL_B] another.chosen.relation
 
 **Your Selection:**"""
-    
+
     PATH_SELECTION: ClassVar[str] = """**Role:** Knowledge Graph Exploration Result Evaluator
 
 **Objective:** Evaluate the findings from the latest exploration step and select the most relevant ones (direct relations or paths via intermediate entities) that are most likely to help answer the 'Question'.
