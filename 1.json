@@ -1,67 +1,44 @@
 {
-    "id": "WebQTest-751",
-    "question": "who owns google 2012",
-    "ground_truth": [
-        "David Drummond",
-        "Patrick Pichette",
-        "Vic Gundotra",
-        "Larry Page",
-        "Nikesh Arora"
+    "id": "WebQTest-1560_01bd47cf839a907d796deff29832aa26",
+    "question": "Who founded the school where William J. Taverner is a grad student?",
+    "q_entity": "William J. Taverner",
+    "a_entity": "Albert Gallatin",
+    "shortest_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Albert Gallatin"
     ],
-    "prediction": "Kleiner, Perkins, Caufield and Byers, Sequoia Capital",
-    "start_entities": [
-        "Google"
+    "semantic_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Albert Gallatin"
     ],
-    "reasoning": [
-        "Google--[venture_capital.venture_funded_company.venture_investors > [m.02h6fdd] > venture_capital.venture_investment.investor]-->Kleiner, Perkins, Caufield and Byers",
-        "Google--[venture_capital.venture_funded_company.venture_investors > [m.02kvtc0] > venture_capital.venture_investment.investor]-->Sequoia Capital"
+    "negative_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.faculty]->m.0k7hdm5",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.honorary_degrees_awarded]->m.0dgfyqn",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.university.departments]->New York University Department of History",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.mascot]->New York University Bobcat",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution_campus.educational_institution]->New York University"
     ],
-    "analysis": "The question asks about the owners of Google in 2012. From the provided triples, two paths lead to potential owners: 1) Google is connected to 'Kleiner, Perkins, Caufield and Byers' via a venture investment relation, and 2) Google is connected to 'Sequoia Capital' via another venture investment relation. According to the instructions, the comma-separated values in 'Kleiner, Perkins, Caufield and Byers' are treated as distinct entities, resulting in four answer entities.",
-    "exploration_history": [
-        {
-            "round": 1,
-            "expansions": [
-                {
-                    "entity": "Google",
-                    "relations": [
-                        {
-                            "relation": "base.argumentmaps.thing_of_disputed_value.disparagement",
-                            "targets": [
-                                "Google Watch"
-                            ]
-                        },
-                        {
-                            "relation": "venture_capital.venture_funded_company.venture_investors > m.02h6fdd > venture_capital.venture_investment.investor",
-                            "targets": [
-                                "Kleiner, Perkins, Caufield and Byers"
-                            ]
-                        },
-                        {
-                            "relation": "venture_capital.venture_funded_company.venture_investors > m.02kvtc0 > venture_capital.venture_investment.investor",
-                            "targets": [
-                                "Sequoia Capital"
-                            ]
-                        }
-                    ]
-                }
-            ],
-            "exceeded_history_limit": false,
-            "answer_found": {
-                "can_answer": true,
-                "reasoning_path": [
-                    "Google--[venture_capital.venture_funded_company.venture_investors > [m.02h6fdd] > venture_capital.venture_investment.investor]-->Kleiner, Perkins, Caufield and Byers",
-                    "Google--[venture_capital.venture_funded_company.venture_investors > [m.02kvtc0] > venture_capital.venture_investment.investor]-->Sequoia Capital"
-                ],
-                "answer_entities": [
-                    "Kleiner",
-                    "Perkins",
-                    "Caufield and Byers",
-                    "Sequoia Capital"
-                ],
-                "analysis": "The question asks about the owners of Google in 2012. From the provided triples, two paths lead to potential owners: 1) Google is connected to 'Kleiner, Perkins, Caufield and Byers' via a venture investment relation, and 2) Google is connected to 'Sequoia Capital' via another venture investment relation. According to the instructions, the comma-separated values in 'Kleiner, Perkins, Caufield and Byers' are treated as distinct entities, resulting in four answer entities."
-            }
-        }
+    "positive_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Albert Gallatin"
+    ]
+}
+{
+    "id": "WebQTest-1560_01bd47cf839a907d796deff29832aa26",
+    "question": "Who founded the school where William J. Taverner is a grad student?",
+    "q_entity": "William J. Taverner",
+    "a_entity": "Mordecai Manuel Noah",
+    "shortest_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Mordecai Manuel Noah"
     ],
-    "answer_found_during_exploration": true,
-    "fallback_used": false
+    "semantic_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Mordecai Manuel Noah"
+    ],
+    "negative_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.faculty]->m.0k7hdm5",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.honorary_degrees_awarded]->m.0dgfyqn",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.university.departments]->New York University Department of History",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.mascot]->New York University Bobcat",
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution_campus.educational_institution]->New York University"
+    ],
+    "positive_paths": [
+        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Mordecai Manuel Noah"
+    ]
 }

@@ -24,7 +24,7 @@ PREFERENCE_DATASET_OUTPUT_BASE="${BASE_WORKDIR}/data/naive_preference_dataset"
 
 # Base name for the COMBINED preference dataset outputs
 # You can customize this, e.g., by joining dataset names or using a generic name
-COMBINED_PREFERENCE_BASE_OUTPUT_NAME="combined_${ALL_DATASET_NAMES[0]}" # Example: using first dataset name as base for combined
+COMBINED_PREFERENCE_BASE_OUTPUT_NAME="train" # Example: using first dataset name as base for combined
 
 # Python script names (assuming they are in a 'workflow' subdirectory)
 PREPARE_PATHS_SCRIPT="workflow/prepare_paths.py"

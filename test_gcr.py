@@ -38,8 +38,8 @@ except Exception as e:
     exit()
 
 # 4. Define the conversation content
-user_question = 'Which city is the person who wrote the lyrics for "Long Live" from?'
-prompt_instruction = "Please generate 5 reasoning paths to answer the question:"
+user_question = 'What movie was nominiated with an award titled \"as Robby Ray Stewart\" and featured Taylor Swift?'
+prompt_instruction = "Please generate reasoning paths to answer the question:"
 full_user_message = f"{prompt_instruction} {user_question}"
 
 # 5. Construct the chat prompt using the tokenizer's chat template

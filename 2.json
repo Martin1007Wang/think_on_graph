@@ -1,142 +1,22 @@
 {
-    "id": "WebQTest-751",
-    "question": "who owns google 2012",
-    "ground_truth": [
-        "David Drummond",
-        "Patrick Pichette",
-        "Vic Gundotra",
-        "Larry Page",
-        "Nikesh Arora"
+    "id": "WebQTest-538_e767ac9ea2c1ea9896e9267b30ea9306",
+    "question": "What movie was nominiated with an award titled \"as Robby Ray Stewart\" and featured Taylor Swift?",
+    "q_entity": "Taylor Swift",
+    "a_entity": "Hannah Montana: The Movie",
+    "shortest_paths": [
+        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.film]->Hannah Montana: The Movie"
     ],
-    "prediction": "Eric Schmidt, Patrick Pichette, David Drummond, Sergey Brin, Nikesh Arora, Larry Page, Vic Gundotra, Sequoia Capital, Kleiner, Perkins, Caufield and Byers",
-    "start_entities": [
-        "Google"
+    "semantic_paths": [
+        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.film]->Hannah Montana: The Movie"
     ],
-    "reasoning": [
-        "Google--[organization.organization.leadership > [m.0w2mc2h] > organization.leadership.person]-->Eric Schmidt",
-        "Google--[organization.organization.leadership > [m.09t8p8m] > organization.leadership.person]-->Patrick Pichette",
-        "Google--[organization.organization.leadership > [m.09t816f] > organization.leadership.person]-->David Drummond",
-        "Google--[organization.organization.leadership > [m.0gxs5zy] > organization.leadership.person]-->Sergey Brin",
-        "Google--[organization.organization.leadership > [m.09tg2jg] > organization.leadership.person]-->Nikesh Arora",
-        "Google--[organization.organization.leadership > [m.0w2mf_w] > organization.leadership.person]-->Larry Page",
-        "Google--[organization.organization.leadership > [m.010cplgm] > organization.leadership.person]-->Vic Gundotra",
-        "Google--[venture_capital.venture_funded_company.venture_investors > [m.02kvtc0] > venture_capital.venture_investment.investor]-->Sequoia Capital",
-        "Google--[venture_capital.venture_funded_company.venture_investors > [m.02h6fdd] > venture_capital.venture_investment.investor]-->Kleiner, Perkins, Caufield and Byers"
+    "negative_paths": [
+        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.special_performance_type]->Him/Herself",
+        "Taylor Swift-[film.writer.film]->Taylor Swift: Speak Now World Tour Live",
+        "Taylor Swift-[film.person_or_entity_appearing_in_film.films]->m.0w5xdz9",
+        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.actor]->Taylor Swift",
+        "Taylor Swift-[film.producer.film]->Taylor Swift: Speak Now World Tour Live"
     ],
-    "analysis": "The question asks 'who owns Google 2012'. From the provided triples, the answer entities are derived from the leadership and venture investors of Google. The leadership includes individuals like Eric Schmidt, Patrick Pichette, David Drummond, Sergey Brin, Nikesh Arora, Larry Page, and Vic Gundotra. The venture investors include Sequoia Capital and Kleiner, Perkins, Caufield and Byers, where the latter is split into separate entities as per the instruction to treat comma-separated values as distinct entities.",
-    "exploration_history": [
-        {
-            "round": 1,
-            "expansions": [
-                {
-                    "entity": "Google",
-                    "relations": [
-                        {
-                            "relation": "organization.organization.leadership",
-                            "targets": [
-                                "Google Apps for Work"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization_founder.organizations_founded",
-                            "targets": [
-                                "Calico"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization_founder.organizations_founded",
-                            "targets": [
-                                "Open Handset Alliance"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization.leadership > m.0w2mc2h > organization.leadership.person",
-                            "targets": [
-                                "Eric Schmidt"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization.leadership > m.09t8p8m > organization.leadership.person",
-                            "targets": [
-                                "Patrick Pichette"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization.leadership > m.09t816f > organization.leadership.person",
-                            "targets": [
-                                "David Drummond"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization.leadership > m.0gxs5zy > organization.leadership.person",
-                            "targets": [
-                                "Sergey Brin"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization.leadership > m.09tg2jg > organization.leadership.person",
-                            "targets": [
-                                "Nikesh Arora"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization.leadership > m.0w2mf_w > organization.leadership.person",
-                            "targets": [
-                                "Larry Page"
-                            ]
-                        },
-                        {
-                            "relation": "organization.organization.leadership > m.010cplgm > organization.leadership.person",
-                            "targets": [
-                                "Vic Gundotra"
-                            ]
-                        },
-                        {
-                            "relation": "venture_capital.venture_funded_company.venture_investors > m.02kvtc0 > venture_capital.venture_investment.investor",
-                            "targets": [
-                                "Sequoia Capital"
-                            ]
-                        },
-                        {
-                            "relation": "venture_capital.venture_funded_company.venture_investors > m.02h6fdd > venture_capital.venture_investment.investor",
-                            "targets": [
-                                "Kleiner, Perkins, Caufield and Byers"
-                            ]
-                        }
-                    ]
-                }
-            ],
-            "exceeded_history_limit": false,
-            "answer_found": {
-                "can_answer": true,
-                "reasoning_path": [
-                    "Google--[organization.organization.leadership > [m.0w2mc2h] > organization.leadership.person]-->Eric Schmidt",
-                    "Google--[organization.organization.leadership > [m.09t8p8m] > organization.leadership.person]-->Patrick Pichette",
-                    "Google--[organization.organization.leadership > [m.09t816f] > organization.leadership.person]-->David Drummond",
-                    "Google--[organization.organization.leadership > [m.0gxs5zy] > organization.leadership.person]-->Sergey Brin",
-                    "Google--[organization.organization.leadership > [m.09tg2jg] > organization.leadership.person]-->Nikesh Arora",
-                    "Google--[organization.organization.leadership > [m.0w2mf_w] > organization.leadership.person]-->Larry Page",
-                    "Google--[organization.organization.leadership > [m.010cplgm] > organization.leadership.person]-->Vic Gundotra",
-                    "Google--[venture_capital.venture_funded_company.venture_investors > [m.02kvtc0] > venture_capital.venture_investment.investor]-->Sequoia Capital",
-                    "Google--[venture_capital.venture_funded_company.venture_investors > [m.02h6fdd] > venture_capital.venture_investment.investor]-->Kleiner, Perkins, Caufield and Byers"
-                ],
-                "answer_entities": [
-                    "Eric Schmidt",
-                    "Patrick Pichette",
-                    "David Drummond",
-                    "Sergey Brin",
-                    "Nikesh Arora",
-                    "Larry Page",
-                    "Vic Gundotra",
-                    "Sequoia Capital",
-                    "Kleiner",
-                    "Perkins",
-                    "Caufield and Byers"
-                ],
-                "analysis": "The question asks 'who owns Google 2012'. From the provided triples, the answer entities are derived from the leadership and venture investors of Google. The leadership includes individuals like Eric Schmidt, Patrick Pichette, David Drummond, Sergey Brin, Nikesh Arora, Larry Page, and Vic Gundotra. The venture investors include Sequoia Capital and Kleiner, Perkins, Caufield and Byers, where the latter is split into separate entities as per the instruction to treat comma-separated values as distinct entities."
-            }
-        }
-    ],
-    "answer_found_during_exploration": true,
-    "fallback_used": false
+    "positive_paths": [
+        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.film]->Hannah Montana: The Movie"
+    ]
 }

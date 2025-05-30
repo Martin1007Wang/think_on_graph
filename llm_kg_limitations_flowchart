@@ -1,0 +1,127 @@
+// LLM+KG Limitations Flowchart
+digraph {
+	concentrate=true label="Limitations of LLM+KG Paradigms in a Real-World Case Study" labelloc=t rankdir=TB splines=ortho
+	node [fontname=serif fontsize=10 shape=box style=filled]
+	edge [fontname=serif fontsize=9]
+	compound=true
+	subgraph cluster_generator {
+		color=azure2 fontname=serif fontsize=14 label="Paradigm 1: LLM as Generator" style=filled
+		rank=same
+		gen_llm_icon [label="LLM
+(Generator)" fillcolor=lightgoldenrodyellow shape=ellipse]
+		gen_kg_icon [label="KG
+(Constraint/Validator)" fillcolor=lightgreen shape=cylinder]
+		gen_llm_icon -> gen_kg_icon [label="Generates Path/
+Sub-graph Draft"]
+		subgraph cluster_gen_limit1_1 {
+			color=beige label="Limitation 1.1: Hallucination / Generating Non-existent Paths or Entities" style=filled
+			q1_1 [label="User Query:
+\"Movie with 'Robby Ray Stewart'
+nomination & Taylor Swift?\"" fillcolor=lightblue]
+			llm1_1_action [label="LLM Generates Path:
+\"Taylor Swift -> film.actor.film -> m.0wrcxt_ ->
+film.performance.film -> THG:M2\"
+(THG:M2 is non-existent/unconnected in KG)" fillcolor=lightgoldenrodyellow shape=oval]
+			kg1_1_result [label="KG Validation:
+Path to \"THG:M2\" fails.
+(Entity non-existent or path invalid)" fillcolor=salmon shape=cylinder]
+			cap1_1 [label="Caption:
+Hallucination
+(e.g., Path to non-existent 'THG:M2')" fontcolor=black shape=plaintext]
+			q1_1 -> llm1_1_action [label=Input]
+			llm1_1_action -> kg1_1_result [label="Proposed Path"]
+			kg1_1_result -> cap1_1 [label=Outcome style=dashed]
+		}
+		subgraph cluster_gen_limit1_2 {
+			color=beige label="Limitation 1.2: Missing Implicit/Optimal Paths (Lacks Deep KG Topology Awareness)" style=filled
+			q1_2 [label="User Query:
+\"Taylor Swift & HMTM - music connection?\"" fillcolor=lightblue]
+			llm1_2_action [label="LLM Generates:
+Simple/Incorrect Path
+(e.g., \"TS -[acts in?]-> HMTM\")" fillcolor=lightgoldenrodyellow shape=oval]
+			kg1_2_missed [label="Actual KG Path (Missed by LLM):
+\"TS -> Music Genre -> Country ->
+Music Album Genre -> HMTM\"" fillcolor=lightgrey shape=cylinder]
+			cap1_2 [label="Caption:
+Overlooks Complex KG Paths
+(e.g., TS-HMTM music link)" fontcolor=black shape=plaintext]
+			q1_2 -> llm1_2_action [label=Input]
+			llm1_2_action -> cap1_2 [label="LLM Output Leads To" style=dashed]
+		}
+		subgraph cluster_gen_limit1_3 {
+			color=beige label="Limitation 1.3: Maintenance Overhead (New KG Entities)" style=filled
+			kg1_3_update [label="KG State:
+Original KG + New Entity Added
+\"+ Future Blockbuster 2025 (feat. TS)\"" fillcolor=lightgreen shape=cylinder]
+			q1_3 [label="User Query:
+\"TS recent movies?\"" fillcolor=lightblue]
+			llm1_3_action [label="LLM (Stale Knowledge) Output:
+List *omits* \"Future Blockbuster 2025\"
+(Model not retrained/constraints not updated)" fillcolor=lightgoldenrodyellow shape=oval]
+			cap1_3 [label="Caption:
+Stale Knowledge
+(e.g., Misses new 'Future Blockbuster 2025')" fontcolor=black shape=plaintext]
+			q1_3 -> llm1_3_action [label="Input to LLM
+(Context: KG Updated)"]
+			llm1_3_action -> cap1_3 [label=Outcome style=dashed]
+		}
+	}
+	subgraph cluster_explorer {
+		color=azure2 fontname=serif fontsize=14 label="Paradigm 2: LLM as Explorer" style=filled
+		rank=same
+		exp_llm_icon [label="LLM
+(Explorer Agent)" fillcolor=lightgoldenrodyellow shape=ellipse]
+		exp_kg_fragment [label="{<n1>Node A | <r1>Rel1 | <n2>Node B | <r2>Rel2 | <n3>Node C}" fillcolor=lightgreen shape=record]
+		exp_llm_icon -> exp_kg_fragment [label="Navigates/
+Selects Next Hop"]
+		subgraph cluster_exp_limit2_1 {
+			color=beige label="Limitation 2.1: Misunderstanding Domain-Specific Relation Nuances" style=filled
+			q2_1 [label="User Query:
+\"TS core role in TS:SNWTL concert film?\"" fillcolor=lightblue]
+			llm2_1_context [label="LLM at \"TS:SNWTL\" Node in KG.
+Available Relations:
+- film.film.produced_by (to TS)
+- film.film.written_by (to TS)
+- film.film.artists (generic)" fillcolor=lightgoldenrodyellow shape=oval]
+			llm2_1_action [label="LLM Incorrectly Prioritizes:
+Follows generic \"artists\" relation" color=red fillcolor=lightgoldenrodyellow shape=oval style="filled,dashed"]
+			kg2_1_correct [label="Correct/Specific Relations (De-emphasized):
+\"produced_by\", \"written_by\"" fillcolor=lightgrey shape=cylinder]
+			cap2_1 [label="Caption:
+Misinterprets Relation Nuance
+(e.g., 'produced_by' vs. 'artists')" fontcolor=black shape=plaintext]
+			q2_1 -> llm2_1_context [label="Input & Context"]
+			llm2_1_context -> llm2_1_action [label=Decision]
+			llm2_1_action -> cap2_1 [style=dashed]
+		}
+		subgraph cluster_exp_limit2_2 {
+			color=beige label="Limitation 2.2: High API Cost & Latency (Multi-hop Reasoning)" style=filled
+			q2_2 [label="User Query:
+\"How is TS 'Him/Herself' in HMTM?\"" fillcolor=lightblue]
+			llm2_2_action [label="LLM Multi-Hop Exploration:
+1. TS --(API Call $)--> m.0ysr8tn
+2. m.0ysr8tn --(API Call $)--> HMTM
+3. m.0ysr8tn --(API Call $)--> Him/Herself" fillcolor=lightgoldenrodyellow shape=oval]
+			cap2_2 [label="Caption:
+Costly Multi-Hop Exploration
+(e.g., TS as 'Him/Herself' in HMTM)" fontcolor=black shape=plaintext]
+			q2_2 -> llm2_2_action [label=Input]
+			llm2_2_action -> cap2_2 [style=dashed]
+		}
+		subgraph cluster_exp_limit2_3 {
+			color=beige label="Limitation 2.3: Lacks Targeted Path Preference (Focuses on Local Optima)" style=filled
+			q2_3 [label="User Query:
+\"TS non-acting HMTM contributions?\"" fillcolor=lightblue]
+			llm2_3_action [label="LLM Explores Predominantly:
+\"Acting\" Path
+(TS -> film.actor.film -> ... -> HMTM)" fillcolor=lightgoldenrodyellow shape=oval]
+			kg2_3_missed [label="Valid \"Music Contribution\" Path (Ignored by LLM):
+(TS -> music.artist.genre -> ... -> HMTM)" fillcolor=lightgrey shape=cylinder]
+			cap2_3 [label="Caption:
+Stuck in Local Optima
+(e.g., Misses TS-HMTM music path)" fontcolor=black shape=plaintext]
+			q2_3 -> llm2_3_action [label=Input]
+			llm2_3_action -> cap2_3 [style=dashed]
+		}
+	}
+}
