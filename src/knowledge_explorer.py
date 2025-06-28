@@ -1,4 +1,4 @@
-'''import concurrent.futures
+import concurrent.futures
 import datetime
 import logging
 import os
@@ -212,4 +212,3 @@ class KnowledgeExplorer:
         
         self.logger.info(f"Question {question_id} processed in {duration_s:.2f} seconds.")
         return final_result
-'''

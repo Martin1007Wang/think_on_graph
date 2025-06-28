@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from datasets import load_dataset
 
-'''from src.llms import get_registed_model
+from src.llms import get_registed_model
 from src.llms.base_language_model import BaseLanguageModel
 from src.evaluator import run_evaluation
 from src.knowledge_graph import KnowledgeGraph

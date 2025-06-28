@@ -1,14 +1,13 @@
-'''from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 @dataclass
 class ExplorationRound:
     round_num: int
-    current_entity: str
-    question_posed: str
-    candidate_relations: List[Dict[str, Any]]
-    chosen_relation: str
-    next_entity: Union[str, List[str]]
+    question_posed_to_llm: str
+    expanded_entity: str
+    candidate_relations: List[str]
+    chosen_relations: List[Dict[str, Any]]
     model_reasoning: Optional[str] = None
 
 @dataclass
@@ -19,4 +18,3 @@ class TraversalState:
     answer_found: bool = False
     final_answer_entities: List[str] = field(default_factory=list)
     final_reasoning_summary: str = ""
-'''
