@@ -11,28 +11,6 @@ from collections import defaultdict
 import random
 from enum import Enum
 
-# Assuming src.knowledge_graph.KnowledgeGraph and src.template.KnowledgeGraphTemplates are available
-# For placeholder purposes if they are not defined in this environment:
-if 'KnowledgeGraph' not in globals():
-    class KnowledgeGraph:
-        def __init__(self, uri, user, password):
-            logger.info(f"Mock KnowledgeGraph initialized with {uri}")
-        def get_related_relations(self, entity_name: str, direction: str) -> Optional[List[str]]:
-            logger.info(f"Mock KG: get_related_relations for {entity_name}, direction {direction}")
-            # Return some dummy data for testing if needed
-            if entity_name == "test_entity_1":
-                return ["relation_A", "relation_B", "relation_C"]
-            return []
-        def close(self):
-            logger.info("Mock KnowledgeGraph closed.")
-
-if 'KnowledgeGraphTemplates' not in globals():
-    class KnowledgeGraphTemplates:
-        def __init__(self):
-            logger.info("Mock KnowledgeGraphTemplates initialized.")
-        # Add any methods that might be called if necessary for the script to run
-        pass
-
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -59,13 +37,13 @@ class ProcessingConfig:
 
 def format_template(template_name: str, **kwargs: Any) -> str:
     question = kwargs.get('question', '')
-    entity = kwargs.get('entity', '') # Entity name, will be tagged here
-    history = kwargs.get('history')  # Expects a pre-formatted string or None
+    entity = kwargs.get('entity', '')
+    history = kwargs.get('history')
     max_selection_count = kwargs.get('max_selection_count', 5)
     
     prompt_content = "Based on the following information:\n"
     prompt_content += f"- Question: {question}\n"
-    prompt_content += f"- Current Entity: <ENT>{entity.strip()}</ENT>\n" # MODIFIED: Tag entity
+    prompt_content += f"- Current Entity: {entity.strip()}\n" # MODIFIED: Tag entity
     
     if history:
         prompt_content += f"- Exploration History:\n{history.strip()}\n"
@@ -80,7 +58,7 @@ def format_template(template_name: str, **kwargs: Any) -> str:
     prompt_content += instruction + "\n"
         
     # MODIFIED: Update output format instruction
-    prompt_content += "\nYour Generated Relations (format: <REL>relation name</REL>, one per line):"
+    prompt_content += "\nYour Generated Relations (format: relation name, one per line):"
     
     return prompt_content
 
@@ -122,8 +100,7 @@ def create_relation_selection_example_with_history(
     all_possible_relations_for_step: List[str], # List of raw relation names
     gold_chosen_relations: List[str], # List of raw relation names
     gold_negative_relations: List[str], # List of raw relation names
-    max_selection_count: int,
-    template_builder: KnowledgeGraphTemplates # This argument is not used in this function currently
+    max_selection_count: int
 ) -> Optional[Dict[str, Any]]:
 
     unique_all_possible_relations = sorted(list(set(all_possible_relations_for_step)))
@@ -139,9 +116,9 @@ def create_relation_selection_example_with_history(
         for i_hist, (src_hist, rel_hist, tgt_hist) in enumerate(history_tuples):
             # Using .strip() for safety, though parse_path_to_segments should already do it.
             history_lines.append(
-                f"  Step {i_hist+1}: Explored path: starting from <ENT>{src_hist.strip()}</ENT>, "
-                f"via relation <REL>{rel_hist.strip()}</REL>, "
-                f"leading to <ENT>{tgt_hist.strip()}</ENT>."
+                f"  Step {i_hist+1}: Explored path: starting from {src_hist.strip()}, "
+                f"via relation {rel_hist.strip()} "
+                f"leading to {tgt_hist.strip()}."
             )
         history_section_str = "\n".join(history_lines)
 
@@ -154,11 +131,9 @@ def create_relation_selection_example_with_history(
     template_name = "relation_generation_with_history" if history_tuples else "relation_generation"
     user_prompt_content = format_template(template_name, **template_args)
 
-    # --- Prepare CHOSEN and REJECTED responses with <REL> tags ---
-
     valid_gold_chosen_relations = [rel for rel in gold_chosen_relations if rel in unique_all_possible_relations]
     # MODIFIED: Tag chosen relations
-    chosen_response_content_lines = [f"<REL>{rel.strip()}</REL>" for rel in sorted(list(set(valid_gold_chosen_relations)))[:max_selection_count]]
+    chosen_response_content_lines = [f"{rel.strip()}" for rel in sorted(list(set(valid_gold_chosen_relations)))[:max_selection_count]]
 
 
     if not chosen_response_content_lines:
@@ -168,7 +143,7 @@ def create_relation_selection_example_with_history(
 
     candidate_rejected_rels = {
         rel for rel in gold_negative_relations
-        if rel in unique_all_possible_relations and f"<REL>{rel.strip()}</REL>" not in chosen_response_content_lines # Compare raw rel to raw content of chosen
+        if rel in unique_all_possible_relations and f"{rel.strip()}" not in chosen_response_content_lines # Compare raw rel to raw content of chosen
     }
     
     # Ensure chosen relations (raw form) are not accidentally added to rejected set's base
@@ -196,8 +171,7 @@ def create_relation_selection_example_with_history(
         final_rejected_lines_set.update(potential_rejected_raw[:max_selection_count])
 
     # MODIFIED: Tag rejected relations
-    rejected_response_content_lines = [f"<REL>{rel.strip()}</REL>" for rel in sorted(list(final_rejected_lines_set))[:max_selection_count]]
-
+    rejected_response_content_lines = [f"{rel.strip()}" for rel in sorted(list(final_rejected_lines_set))[:max_selection_count]]
 
     if not rejected_response_content_lines:
         # This case might occur if all unique_all_possible_relations were chosen.
@@ -206,7 +180,7 @@ def create_relation_selection_example_with_history(
              fallback_rejected_raw = [r for r in unique_all_possible_relations if r not in raw_chosen_rels_for_rejection_check]
              random.shuffle(fallback_rejected_raw)
              if fallback_rejected_raw:
-                rejected_response_content_lines = [f"<REL>{rel.strip()}</REL>" for rel in sorted(list(fallback_rejected_raw))[:max_selection_count]]
+                rejected_response_content_lines = [f"{rel.strip()}" for rel in sorted(list(fallback_rejected_raw))[:max_selection_count]]
 
         if not rejected_response_content_lines: # Still empty
              logger.debug(f"No rejected relations could be formed for entity '{current_entity}'. Chosen: {chosen_response_content_lines}, Possible (raw): {unique_all_possible_relations}")
@@ -224,7 +198,7 @@ def create_relation_selection_example_with_history(
         "rejected": rejected_response_content_str.strip()
     }
     
-def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config: ProcessingConfig, template_builder: KnowledgeGraphTemplates) -> List[Dict[str, Any]]:
+def process_path_item(item: Dict[str, Any], config: ProcessingConfig) -> List[Dict[str, Any]]:
     question = item.get("question", "")
     sample_id = item.get("id", "unknown")
     preference_examples: List[Dict[str, Any]] = []
@@ -289,17 +263,6 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
             candidate_pool_for_step_set = set() # This will store RAW relation names
             relations_from_kg_set = set() # RAW relation names from KG
 
-            if config.candidate_strategy in [CandidateStrategy.KG_ALLHOP, CandidateStrategy.PN_KG_SUPPLEMENT]:
-                try:
-                    if kg: 
-                        relations_from_kg_list = kg.get_related_relations(src_step, "out") # src_step is raw
-                        if relations_from_kg_list is not None: 
-                            relations_from_kg_set.update(relations_from_kg_list) # KG returns raw relation names
-                except AttributeError:
-                    logger.warning(f"KnowledgeGraph class does not have 'get_related_relations' or kg instance is None. Item {sample_id}, Entity {src_step}. KG relations not used.")
-                except Exception as e_kg:
-                    logger.error(f"Error fetching relations from KG for entity {src_step}: {e_kg}. KG relations not used.")
-
             if config.candidate_strategy == CandidateStrategy.PN_ONLY:
                 candidate_pool_for_step_set.update(current_gold_chosen_relations)
                 candidate_pool_for_step_set.update(current_gold_negative_relations)
@@ -360,7 +323,6 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
                 gold_chosen_relations=current_gold_chosen_relations, 
                 gold_negative_relations=current_gold_negative_relations,
                 max_selection_count=config.max_selection_count,
-                template_builder=template_builder
             )
             
             if example is None:
@@ -388,7 +350,7 @@ def process_path_item(kg: Optional[KnowledgeGraph], item: Dict[str, Any], config
             
     return preference_examples
 
-def create_preference_dataset(args: argparse.Namespace, template_builder: KnowledgeGraphTemplates) -> None:
+def create_preference_dataset(args: argparse.Namespace) -> None:
     logger.info(f"Attempting to load path data from input files: {args.input_files}")
     all_path_data: List[Dict[str, Any]] = []
 
@@ -457,32 +419,18 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
     )
 
     logger.info(f"Starting DPO example generation with config: {config}")
-    logger.info("IMPORTANT: Remember to add <ENT>, </ENT>, <REL>, </REL> as special tokens to your LLM's tokenizer for fine-tuning.")
     all_preference_examples: List[Dict[str, Any]] = []
-
-    kg_instance: Optional[KnowledgeGraph] = None
-    if args.candidate_strategy != CandidateStrategy.PN_ONLY.value:
-        try:
-            if isinstance(KnowledgeGraph, type) and hasattr(KnowledgeGraph, '__init__'):
-                kg_instance = KnowledgeGraph(args.neo4j_uri, args.neo4j_user, args.neo4j_password)
-            else:
-                logger.warning("KnowledgeGraph class not available or not a proper class, KG-dependent strategies will be limited.")
-        except Exception as e:
-            logger.error(f"Failed to initialize KnowledgeGraph: {e}. KG-dependent strategies will be limited.", exc_info=True)
 
     for item in tqdm(all_path_data, desc="Processing path items to DPO examples"):
         try:
             if not isinstance(item, dict):
                 logger.warning(f"Skipping item as it is not a dictionary: {type(item)}")
                 continue
-            preference_examples_for_item = process_path_item(kg_instance, item, config, template_builder)
+            preference_examples_for_item = process_path_item(item, config)
             all_preference_examples.extend(preference_examples_for_item)
         except Exception as e_inner:
             item_id_info = item.get('id', 'unknown_id') if isinstance(item, dict) else 'unknown_item_structure'
             logger.error(f"Error processing item (ID: {item_id_info}): {e_inner}", exc_info=True)
-
-    if kg_instance and hasattr(kg_instance, 'close'):
-        kg_instance.close()
 
     if all_preference_examples:
         logger.info(f"DPO example generation complete. Total DPO examples: {len(all_preference_examples)}")
@@ -490,8 +438,7 @@ def create_preference_dataset(args: argparse.Namespace, template_builder: Knowle
         output_name_parts = [
             args.base_output_name,
             f"cand_{config.candidate_strategy.value}",
-            f"pos_{config.positive_source_field.value}",
-            "tagged_v1" # Added a version indicator for this new format
+            f"pos_{config.positive_source_field.value}"
         ]
         dynamic_output_name = "_".join(output_name_parts)
         output_dir = os.path.join(args.output_path, dynamic_output_name)
@@ -529,9 +476,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create DPO preference dataset from path-enhanced data, with history and relation sampling, using generation prompts with ENT/REL tags.")
     parser.add_argument('--input_files', type=str, required=True, nargs='+',
                         help='One or more input path-enhanced dataset files (e.g., data1.json, data2.jsonl) or Hugging Face dataset directories.')
-    parser.add_argument('--output_path', type=str, default='./data/processed_dpo_tagged', # Changed default output path slightly
+    parser.add_argument('--output_path', type=str, default='./data/processed_dpo', # Changed default output path slightly
                         help='Base output directory for the new DPO dataset.')
-    parser.add_argument('--base_output_name', type=str, default='dpo_prefs_tagged', # Changed default base name slightly
+    parser.add_argument('--base_output_name', type=str, default='dpo_prefs', # Changed default base name slightly
                         help='Base name for the output DPO preference dataset directory (strategy/source/prompt_style info will be appended).')
 
     parser.add_argument('--candidate_strategy', type=str, default=CandidateStrategy.PN_KG_SUPPLEMENT.value,
@@ -558,16 +505,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    template_builder_instance = None
-    # Ensure KnowledgeGraphTemplates is properly defined or mocked
-    if isinstance(KnowledgeGraphTemplates, type) and callable(KnowledgeGraphTemplates):
-        try:
-            template_builder_instance = KnowledgeGraphTemplates()
-        except Exception as e:
-            logger.error(f"Failed to initialize KnowledgeGraphTemplates: {e}. Ensure mock or 'src.template.KnowledgeGraphTemplates' is correctly defined and callable.")
-            exit(1) # Critical failure
-    else:
-        logger.error("KnowledgeGraphTemplates class definition not found or not callable. Cannot proceed.")
-        exit(1) # Critical failure
-        
-    create_preference_dataset(args, template_builder_instance)
+    
+    create_preference_dataset(args)

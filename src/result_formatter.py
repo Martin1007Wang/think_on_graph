@@ -1,217 +1,176 @@
 import logging
-import io # 保留导入以备将来可能的优化
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set, Union
+from src.utils.data_utils import ExplorationRound, EntityExpansion, Path
+from dataclasses import asdict
 
-# --- 假设的数据类定义 (用于类型提示和示例) ---
-# from src.path_manager import PathManager # 假设 PathManager 被正确导入
-
-class PathManager: # Placeholder
-     def is_coded_entity(self, entity: str) -> bool:
-         # 示例逻辑，根据需要替换
-         return isinstance(entity, str) and entity.startswith(('m.', 'g.'))
-
-class EntityRelation:
-    # 使用 __slots__ 可以略微减少内存占用和加快属性访问速度 (可选优化)
-    __slots__ = ('relation', 'targets')
-    def __init__(self, relation: str, targets: List[Any]):
-        self.relation = relation
-        self.targets = targets
-
-class EntityExpansion:
-    __slots__ = ('entity', 'relations')
-    def __init__(self, entity: str):
-        self.entity = entity
-        self.relations: List[EntityRelation] = []
-
-class ExplorationRound:
-    __slots__ = ('round_num', 'expansions', 'exceeded_history_limit', 'answer_found')
-    def __init__(self, round_num: int):
-        self.round_num = round_num
-        self.expansions: List[EntityExpansion] = []
-        self.exceeded_history_limit: bool = False
-        # 假设 answer_found 要么是 None，要么是一个可序列化的字典
-        self.answer_found: Optional[Dict[str, Any]] = None
-
-    # **推荐**: 如果控制 ExplorationRound 类，实现一个高效的 to_dict 方法
-    # def to_dict(self) -> Dict[str, Any]:
-    #     return {
-    #         "round": self.round_num,
-    #         "expansions": [
-    #             {
-    #                 "entity": exp.entity,
-    #                 "relations": [{"relation": rel.relation, "targets": rel.targets} for rel in exp.relations]
-    #             } for exp in self.expansions
-    #         ],
-    #         # 只在存在时添加可选字段
-    #         **({"exceeded_history_limit": self.exceeded_history_limit} if hasattr(self, 'exceeded_history_limit') else {}),
-    #         **({"answer_found": self.answer_found} if self.answer_found is not None else {})
-    #     }
-
-# --- 日志配置 ---
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
 
-# --- 优化后的 ResultFormatter ---
 class ResultFormatter:
-    """
-    Formats exploration results into various representations.
-    Performance considerations:
-    - Assumes efficiency relies heavily on the size of exploration data.
-    - String operations are generally efficient but can add up in deep loops.
-    - Serialization (`_round_to_dict`) called in a loop is a key area.
-    """
-    def __init__(self, path_manager: PathManager):
-        self.path_manager = path_manager
+    @staticmethod
+    @staticmethod
+    def is_coded_entity(entity: str) -> bool:
+        return isinstance(entity, str) and (entity.startswith("m.") or entity.startswith("g."))
 
-    def format_round(self, round_data: ExplorationRound) -> str:
-        """Formats a single exploration round into a human-readable string."""
-        result_lines = [f"Round {round_data.round_num}:"]
-        expansions = getattr(round_data, 'expansions', [])
-        if not expansions:
-             result_lines.append("  No expansions in this round.")
+    @staticmethod
+    def extract_paths_from_history(
+        start_entities: Set[str],
+        history: List[ExplorationRound]
+    ) -> List[Path]:
+        if not history:
+            return []
 
-        for expansion in expansions:
-            entity = getattr(expansion, 'entity', '[Missing Entity]')
-            result_lines.append(f"  Entity: {entity}")
-            relations = getattr(expansion, 'relations', [])
-            if not relations:
-                result_lines.append("    No relations found for this entity.")
+        graph_view: Dict[str, List[Dict[str, str]]] = {}
+        for round_data in history:
+            for expansion in round_data.expansions:
+                if expansion.entity not in graph_view:
+                    graph_view[expansion.entity] = []
+                for relation in expansion.relations:
+                    for target in relation.targets:
+                        graph_view[expansion.entity].append({
+                            "relation": relation.name,
+                            "target": target
+                        })
+
+        all_paths: List[Path] = []
+        
+        def _dfs_recursive(
+            current_node: str,
+            current_path_elements: List[Dict[str, str]],
+            visited_in_path: Set[str]
+        ):
+
+            visited_in_path.add(current_node)
+
+            if current_node not in graph_view or not graph_view[current_node]:
+                if current_path_elements:
+                    all_paths.append(Path(elements=list(current_path_elements)))
+                return
+
+            for edge in graph_view[current_node]:
+                new_target = edge["target"]
+                
+                path_element = {
+                    "source": current_node,
+                    "relation": edge["relation"],
+                    "target": new_target
+                }
+                new_path = current_path_elements + [path_element]
+                if new_target in visited_in_path:
+                    logger.debug(f"Cycle detected at '{new_target}', terminating this path.")
+                    all_paths.append(Path(elements=new_path))
+                    continue
+                _dfs_recursive(new_target, new_path, visited_in_path.copy())
+        for start_node in start_entities:
+            if start_node in graph_view:
+                _dfs_recursive(start_node, [], set())
+
+        return all_paths
+            
+    def format_history(self, history: Union[ExplorationRound, List[ExplorationRound]]) -> str:
+        if not isinstance(history, list):
+            history = [history]
+
+        # --- 从这里开始，函数其余部分的逻辑与之前完全相同 ---
+
+        # 如果历史记录为空（或传入的是一个空列表），则返回提示信息
+        if not history:
+            return "No exploration history was recorded."
+
+        # 用于存储所有轮次格式化后的文本行
+        all_lines = []
+
+        # 遍历历史记录中的每一轮
+        for round_item in history:
+            # round_item 可能是 None 或者其他无效类型，增加一个健壮性检查
+            if not isinstance(round_item, ExplorationRound) or not round_item.expansions:
                 continue
 
-            for relation_info in relations:
-                relation = getattr(relation_info, 'relation', '[Missing Relation]')
-                targets = getattr(relation_info, 'targets', [])
+            # 添加当前轮次的标题
+            all_lines.append(f"\n--- Round {round_item.round_num} ---")
+            
+            for expansion in round_item.expansions:
+                for relation in expansion.relations:
+                    # 将格式化后的行直接添加到主列表
+                    target_str = ', '.join(relation.targets)
+                    all_lines.append(f"{expansion.entity}--[{relation.name}]-->{target_str}")
+        
+        # 将所有行用换行符合并成一个最终的字符串
+        # 如果 all_lines 为空（例如，所有轮次都没有扩展），则返回提示信息
+        return "\n".join(all_lines) if all_lines else "No valid expansions found in the history."
 
-                try:
-                    # Use self.path_manager if it exists and has the method
-                    is_coded_func = getattr(self.path_manager, 'is_coded_entity', lambda x: False)
-                    hops = [f"[{hop.strip()}]" if is_coded_func(hop.strip()) else hop.strip()
-                            for hop in relation.split('>')]
-                    path_str = ' > '.join(hops)
-                except Exception as e:
-                    logger.error(f"Error processing relation path '{relation}': {e}")
-                    path_str = f"[Error Processing Path: {relation}]"
+    def format_paths_to_history_string(self, paths: List[str]) -> str:
+        """将一个剪枝后的路径列表转换回一个单一的、可用于下一轮探索的历史字符串。"""
+        if not paths:
+            return ""
+        # 确保末尾有换行符，以便下一轮追加
+        return "\n".join(paths) + "\n"
 
-                target_str: str
-                if not targets:
-                    target_str = "[No Targets]"
-                else:
-                    try:
-                        str_targets = []
-                        all_valid = True
-                        for t in targets:
-                             if isinstance(t, str): str_targets.append(t)
-                             elif t is None: str_targets.append("None")
-                             else:
-                                 try: str_targets.append(str(t))
-                                 except Exception: str_targets.append("[Conversion Error]"); all_valid = False
-                        target_str = ", ".join(str_targets)
-                        if not all_valid: logger.warning(f"Round {round_data.round_num}, Path {path_str}: Target conversion issues.")
-                    except Exception as e:
-                         target_str = "[Error Formatting Targets]"
-                         logger.error(f"Round {round_data.round_num}, Path {path_str}: Could not format targets. Error: {e}", exc_info=False)
+    def format_exploration_trace(self, exploration_trace: List[ExplorationRound]) -> str:
+        if not exploration_trace:
+            return "No exploration trace was recorded."
+        
+        all_lines = []
+        for round_item in exploration_trace:
+            all_lines.append(f"\n--- Round {round_item.round_num} ---")
+            all_lines.append(f"Current Entity: {round_item.current_entity}")
+            all_lines.append(f"Chosen Relation: {round_item.chosen_relation}")
+            next_entities = round_item.next_entity
+            if isinstance(next_entities, list):
+                next_entities = ", ".join(next_entities)
+            all_lines.append(f"Next Entity: {next_entities}")
+        return "\n".join(all_lines)
 
-                result_lines.append(f"    {entity}-[{path_str}]->{target_str}")
-
-        if getattr(round_data, "exceeded_history_limit", False):
-            result_lines.append("    [HISTORY SIZE LIMIT EXCEEDED - Exploration stopped]")
-
-        result_lines.append("")
-        return "\n".join(result_lines)
-
-    def format_round_results(self, round_data: ExplorationRound) -> str:
-        """Alias for format_round."""
-        return self.format_round(round_data)
-
-    def format_exploration_history(self, exploration_history: List[ExplorationRound]) -> str:
-        """Formats the entire exploration history."""
-        if not exploration_history: return ""
-        return "\n".join(self.format_round(r) for r in exploration_history).rstrip()
-
-    def create_question_result(self, question_id: str, question: str, ground_truth: Any,
-                               start_entities: List[str], answer: Dict[str, Any],
-                               exploration_history: List[ExplorationRound],
-                               answer_found: bool, fallback_used: bool) -> Dict[str, Any]:
-        """(REVISED) Creates the final structured result dictionary."""
-        prediction_text = "Error: Could not determine prediction text."
-        reasoning_text = ""
-        analysis_text = ""
-
+    '''    def create_question_result(
+        self,
+        question_id: str, 
+        traversal_state: TraversalState,
+        ground_truth: Any,
+        start_entities: List[str],
+        final_answer_data: Dict[str, Any],
+        fallback_used: bool,
+        runtime_s: float,
+        llm_calls: int,
+        llm_tokens: int
+    ) -> Dict[str, Any]:
         try:
-            if fallback_used:
-                prediction_text = answer.get("answer", "Fallback answer missing.")
-                reasoning_text = answer.get("reasoning", "Fallback reasoning missing.")
-                analysis_text = answer.get("analysis", "")
-                logging.debug(f"[{question_id}] Formatting fallback result.")
-            elif answer_found and isinstance(answer, dict):
-                try: prediction_text = self._format_prediction(answer)
-                except Exception as e:
-                     logging.error(f"[{question_id}] Error calling _format_prediction: {e}. Using fallback format.")
-                     entities = answer.get("answer_entities")
-                     prediction_text = ", ".join(map(str, entities)) if isinstance(entities, list) and entities else "Formatting Error"
-                reasoning_text = answer.get("reasoning_path", "No reasoning path provided.")
-                analysis_text = answer.get("analysis", "No analysis provided.")
-                logging.debug(f"[{question_id}] Formatting exploration success result.")
-            else:
-                 logging.error(f"[{question_id}] Inconsistent state in create_question_result. answer_found={answer_found}, fallback_used={fallback_used}, type={type(answer)}")
-                 prediction_text = "Internal Error: Inconsistent state."
-
-            serializable_history = []
-            if exploration_history:
-                 try: serializable_history = [self._round_to_dict(r) for r in exploration_history]
-                 except Exception as e:
-                     logging.error(f"[{question_id}] Failed to serialize exploration history: {e}", exc_info=True)
-                     serializable_history = [{"error": "Failed to serialize round", "round_index": i} for i, r in enumerate(exploration_history)]
-
-            return {
-                "id": question_id, "question": question, "ground_truth": ground_truth,
-                "prediction": prediction_text, "start_entities": start_entities,
-                "reasoning": reasoning_text, "analysis": analysis_text,
-                "exploration_history": serializable_history,
-                "answer_found_during_exploration": answer_found, "fallback_used": fallback_used,
+            serializable_trace = [asdict(r) for r in traversal_state.exploration_trace]
+            result = {
+                "id": question_id,
+                "original_question": traversal_state.original_question,
+                "ground_truth": ground_truth,
+                "final_answer_entities": traversal_state.final_answer_entities,
+                "final_reasoning_summary": traversal_state.final_reasoning_summary,
+                "exploration_trace": serializable_trace,
+                "answer_found": traversal_state.answer_found,
+                "fallback_used": fallback_used,
+                "start_entities": start_entities,
+                "runtime_s": runtime_s,
+                "llm_calls": llm_calls,
+                "llm_tokens": llm_tokens,
             }
+            return result
         except Exception as e:
-             logging.error(f"[{question_id}] Critical error within create_question_result: {e}", exc_info=True)
-             return { "id": question_id, "question": question, "error": f"Failed to format final result: {e}" }
+            logger.critical(f"[{question_id}] Critical error within create_question_result: {e}", exc_info=True)
+            return {"id": question_id, "question": traversal_state.original_question, "error": f"Failed to format final result: {e}"}
+'''
 
-    def _format_prediction(self, answer: Dict[str, Any]) -> str:
-        """(Optimized) Formats prediction string."""
-        sentence = answer.get("answer_sentence")
-        if isinstance(sentence, str) and sentence.strip(): return sentence
-        entities = answer.get("answer_entities")
-        if isinstance(entities, list) and entities:
-             try: return ", ".join(map(str, entities))
-             except Exception as e: logging.error(f"Error converting entities to string: {e}"); return "[Error formatting entities]"
-        return answer.get("answer", "Prediction could not be formatted.")
-
-    def _round_to_dict(self, round_data: ExplorationRound) -> Dict[str, Any]:
-        """(Optimized) Serializes ExplorationRound, preferring its own to_dict."""
-        if hasattr(round_data, 'to_dict') and callable(round_data.to_dict):
-             try: return round_data.to_dict()
-             except Exception as e: logging.error(f"Error calling to_dict on round {getattr(round_data, 'round_num', '?')}: {e}", exc_info=True)
-        try:
-             round_num = getattr(round_data, 'round_num', -1)
-             expansions_data = []
-             for expansion in getattr(round_data, 'expansions', []):
-                 relations_data = [{"relation": getattr(rel, 'relation', None), "targets": getattr(rel, 'targets', [])} for rel in getattr(expansion, 'relations', [])]
-                 expansions_data.append({"entity": getattr(expansion, 'entity', None), "relations": relations_data})
-             result_dict = {"round": round_num, "expansions": expansions_data}
-             if hasattr(round_data, 'exceeded_history_limit'): result_dict["exceeded_history_limit"] = round_data.exceeded_history_limit
-             answer_found_data = getattr(round_data, 'answer_found', None)
-             if answer_found_data is not None: result_dict["answer_found"] = answer_found_data
-             return result_dict
-        except Exception as e:
-             logging.error(f"Error manually serializing round {getattr(round_data, 'round_num', '?')}: {e}", exc_info=True)
-             return {"error": "Failed to manually serialize round", "round_num": getattr(round_data, 'round_num', -1)}
-
-    def create_error_response(self, question: str, question_id: str, ground_truth: Any, start_entities: List[str], error_msg: str, fallback: Dict[str, str]) -> Dict[str, Any]:
-        """Creates a standardized dictionary for critical error responses."""
+    def create_error_response(
+        self,
+        question_id: str,
+        question: str,
+        error_msg: str,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """为严重错误创建标准的响应字典。"""
         return {
-            "id": question_id, "question": question, "ground_truth": ground_truth,
-            "prediction": fallback.get("answer", "Error during processing"),
-            "start_entities": start_entities,
-            "reasoning": f"Error occurred: {error_msg}. Fallback Reason: {fallback.get('reasoning', 'N/A')}",
-            "analysis": "", "exploration_history": [], "answer_found_during_exploration": False,
-            "fallback_used": True, "error": error_msg,
+            "id": question_id,
+            "question": question,
+            "error": error_msg,
+            "prediction": {"answer": "An error occurred during processing.", "reasoning": f"Error: {error_msg}"},
+            "status": {
+                "answer_found_during_exploration": False,
+                "fallback_used": True,
+            },
         }

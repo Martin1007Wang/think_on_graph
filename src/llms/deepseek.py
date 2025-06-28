@@ -1,143 +1,165 @@
-import time
-import os
-from openai import OpenAI
-from .base_language_model import BaseLanguageModel
-import dotenv
-import tiktoken
-from typing import Optional
 import logging
+import os
+import time
 import uuid
+import argparse
+from typing import List, Optional, Union, Any, Generator
+from dataclasses import dataclass, field
 
-dotenv.load_dotenv()
+import tiktoken
+from openai import OpenAI
 
-os.environ['TIKTOKEN_CACHE_DIR'] = './tmp'
+from .base_language_model import BaseLanguageModel, ModelNotReadyError, ConfigurationError, GenerationError
+
 logger = logging.getLogger(__name__)
 
-def get_token_limit(model='deepseek-chat'):
-    num_tokens_limit = 32000
-    return num_tokens_limit
+@dataclass
+class ApiModelConfig:
+    # ... (ApiModelConfig content remains unchanged)
+    model_name: str = "deepseek-ai/DeepSeek-V3"
+    base_url: str = "https://api.siliconflow.cn/v1"
+    api_key_env_var: str = "SILICONFLOW_API_KEY"
+    retry: int = 500
+    timeout: int = 60
+    system_prompt: str = "You are a knowledge graph reasoning expert..."
+    max_context_tokens: int = 32000
+    max_new_tokens: int = 4096
+    temperature: float = 1.0
 
 class SiliconFlowLLM(BaseLanguageModel):
-    # 模型名称映射
-    MODELS = {
-        'deepseek-chat': 'deepseek-ai/DeepSeek-V3'
-    }
+    ENCODING_MODEL = "cl100k_base"
+
+    def __init__(self, config: ApiModelConfig):
+        # --- MODIFIED: Call super().__init__() to set up counters ---
+        super().__init__()
+        self.config = config
+        self.client: Optional[OpenAI] = None
+        # _is_ready is now inherited
+        self.api_key = os.getenv(self.config.api_key_env_var)
+        if not self.api_key:
+            raise ConfigurationError(f"API key not found in env var: {self.config.api_key_env_var}")
+        logger.info(f"SiliconFlowLLM instance created for model: '{config.model_name}'")
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> 'SiliconFlowLLM':
+        # ... (from_args content remains unchanged)
+        config_fields = {f.name for f in ApiModelConfig.__dataclass_fields__.values()}
+        config_kwargs = {}
+        for key, value in vars(args).items():
+            if key in config_fields and value is not None:
+                config_kwargs[key] = value
+
+        if hasattr(args, 'api_model_name') and args.api_model_name:
+            config_kwargs['model_name'] = args.api_model_name
+
+        config = ApiModelConfig(**config_kwargs)
+        return cls(config)
 
     @staticmethod
-    def add_args(parser):
-        if not any(action.dest == 'retry' for action in parser._actions):
-           parser.add_argument('--retry', type=int, help="retry time", default=5)
-        if not any(action.dest == 'model_path' for action in parser._actions):
-           parser.add_argument('--model_path', type=str, default='None')
-        if not any(action.dest == 'deepseek_api_key' for action in parser._actions):
-           parser.add_argument('--deepseek_api_key', type=str, help="DeepSeek API Key", default=None)
-           
-    def __init__(self, args):
-        super().__init__(args)
-        self.retry = args.retry
-        self.model_name = self.MODELS.get(args.predict_model_name, 'deepseek-chat')
-        self.maximun_token = get_token_limit(self.model_name)
-        self.system_prompt = "You are a knowledge graph reasoning expert. Your task is to provide clear and precise answers based on the information provided."
-        # 从命令行参数获取API密钥，如果没有则从环境变量获取
-        # self.api_key = args.deepseek_api_key if hasattr(args, 'deepseek_api_key') and args.deepseek_api_key else os.environ.get('DEEPSEEK_API_KEY')
-        self.api_key = os.environ.get('SILICONFLOW_API_KEY')
-        
-        if not self.api_key:
-            logger.warning("DeepSeek API Key not found in arguments or environment variables. API calls will likely fail.")
-        
-    def token_len(self, text):
-        """Returns the number of tokens used by a list of messages."""
+    def add_args(parser: argparse.ArgumentParser) -> None:
+        # ... (add_args content remains unchanged)
+        group = parser.add_argument_group("API Model Specific Arguments")
+        group.add_argument('--retry', type=int, help="Number of retries for API calls.")
+        group.add_argument('--api_model_name', type=str, help="Name of the API model to use.")
+        group.add_argument('--api_key_env_var', type=str, help="Environment variable for the API key.")
+        group.add_argument('--base_url', type=str, help="API base URL.")
+
+    def prepare_for_inference(self, **kwargs: Any) -> None:
+        if self._is_ready: return
+        logger.info("Initializing SiliconFlow client...")
         try:
-            # 使用 cl100k_base 作为默认 tokenizer
-            encoding = tiktoken.get_encoding("cl100k_base")
-            num_tokens = len(encoding.encode(text))
-        except KeyError:
-            # 如果获取 tokenizer 失败，使用一个简单的估算
-            num_tokens = len(text.split()) * 1.3  # 粗略估算
-        return num_tokens
-    
-    def prepare_for_inference(self, model_kwargs={}):
-        try:
-            # 直接使用DeepSeek官方示例中的方式创建客户端
-            client = OpenAI(
-                api_key=self.api_key,
-                # base_url="https://api.deepseek.com"
-                base_url="https://api.siliconflow.cn/v1"
-            )
-            self.client = client
-            logger.info(f"Successfully initialized DeepSeek client with API key: {self.api_key[:4]}...{self.api_key[-4:] if self.api_key and len(self.api_key) > 8 else '****'}")
+            self.client = OpenAI(api_key=self.api_key, base_url=self.config.base_url, timeout=self.config.timeout)
+            self._is_ready = True
+            logger.info("SiliconFlow client initialized successfully.")
         except Exception as e:
-            logger.error(f"Failed to initialize DeepSeek client: {str(e)}")
-            raise
-    
-    def prepare_model_prompt(self, query):
-        '''
-        Add model-specific prompt to the input
-        '''
+            self._is_ready = False
+            raise ConfigurationError(f"Failed to initialize API client: {e}") from e
+
+    def unload_resources(self) -> None:
+        if not self._is_ready: return
+        self.client = None
+        self._is_ready = False
+        logger.info("SiliconFlow client resources cleared.")
+
+    def token_len(self, text: str) -> int:
+        try:
+            encoding = tiktoken.get_encoding(self.ENCODING_MODEL)
+            return len(encoding.encode(text, disallowed_special=()))
+        except Exception:
+            return int(len(str(text).split()) * 1.5)
+
+    def prepare_model_prompt(self, query: str) -> str:
         return query
-    
-    def generate_sentence(self, llm_input, temp_generation_mode: Optional[str] = None, **kwargs):
-        # 记录一下Trace ID，方便追踪和排查问题
-        trace_id = str(uuid.uuid4())[:8]
-        logger.info(f"[{trace_id}] Starting DeepSeek API call")
+
+    def generate_sentence(
+        self, 
+        llm_input: Union[str, List[str]], 
+        **generation_kwargs: Any
+    ) -> Union[Optional[str], List[Optional[str]]]:
+        if isinstance(llm_input, str):
+            return self._generate_single(llm_input, **generation_kwargs)
+        elif isinstance(llm_input, list):
+            results = []
+            for prompt in llm_input:
+                results.append(self._generate_single(prompt, **generation_kwargs))
+            return results
+        else:
+            raise TypeError(f"Unsupported input type for llm_input: {type(llm_input)}")
+
+    def _generate_single(self, prompt: str, **generation_kwargs: Any) -> Optional[str]:
+        if not self.is_ready or not self.client:
+            raise ModelNotReadyError("SiliconFlow client is not initialized.")
+
+        trace_id = uuid.uuid4().hex[:8]
+        messages = [{"role": "system", "content": self.config.system_prompt}, {"role": "user", "content": prompt}]
         
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": llm_input}
-        ]
+        # ... (Truncation logic remains unchanged)
+        total_tokens = sum(self.token_len(msg['content']) for msg in messages)
+        if total_tokens > self.config.max_context_tokens:
+            original_tokens = total_tokens
+            buffer_tokens = self.config.max_new_tokens
+            system_prompt_tokens = self.token_len(self.config.system_prompt)
+            overhead_tokens = system_prompt_tokens + buffer_tokens
+            max_user_content_tokens = self.config.max_context_tokens - overhead_tokens
+            
+            user_content = prompt 
+            user_content_tokens = self.token_len(user_content)
+
+            if user_content_tokens > max_user_content_tokens:
+                lines = user_content.split('\n')
+                while self.token_len('\n'.join(lines)) > max_user_content_tokens and len(lines) > 1:
+                    lines.pop()
+                user_content = '\n'.join(lines)
+            
+            messages = [{"role": "system", "content": self.config.system_prompt}, {"role": "user", "content": user_content}]
+            final_tokens = sum(self.token_len(msg['content']) for msg in messages)
+            logger.warning(
+                f"[{trace_id}] Context length exceeded. Truncated user content from "
+                f"{original_tokens} to {final_tokens} total tokens to fit within the "
+                f"{self.config.max_context_tokens} limit."
+            )
         
-        cur_retry = 0
-        num_retry = self.retry
+        api_params = {
+            "model": self.config.model_name, "messages": messages,
+            "temperature": self.config.temperature, "max_tokens": self.config.max_new_tokens
+        }
         
-        # 检查输入是否过长
-        input_length = self.token_len(llm_input)
-        logger.info(f"[{trace_id}] Input length: {input_length} tokens (Max: {self.maximun_token})")
-        
-        # 检查是否包含"history_size_exceeded"关键词，这可能是一个困难的案例
-        if "history_size_exceeded" in llm_input or "exploration_history_size" in llm_input:
-            logger.warning(f"[{trace_id}] Detected potential difficult case with large history size")
-        
-        if input_length > self.maximun_token:
-            logger.warning(f"[{trace_id}] Input length {input_length} is too long. The maximum token is {self.maximun_token}. Truncating input.")
-            # 截断输入
-            encoding = tiktoken.get_encoding("cl100k_base")
-            tokens = encoding.encode(llm_input)
-            truncated_tokens = tokens[:self.maximun_token]
-            llm_input = encoding.decode(truncated_tokens)
-            messages[1]["content"] = llm_input
-            logger.info(f"[{trace_id}] Input truncated to {len(truncated_tokens)} tokens")
-        
-        temperature = 0.0
-        if temp_generation_mode == "beam":
-            # 对于beam search保持temperature为0
-            temperature = 0.0
-        elif temp_generation_mode == "sample":
-            # 对于采样，设置适当的temperature
-            temperature = 0.7
-        
-        while cur_retry <= num_retry:
+        for attempt in range(self.config.retry):
             try:
-                logger.info(f"[{trace_id}] Sending request to DeepSeek API (attempt {cur_retry+1}/{num_retry+1})")
-                # 参考DeepSeek官方示例格式进行API调用
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=kwargs.get("max_tokens", 2048),
-                    stream=False
-                )
+                # --- MODIFIED: Increment call counter and add token counting ---
+                self.call_counter += 1
+                response = self.client.chat.completions.create(**api_params)
                 
-                result = response.choices[0].message.content.strip()
-                logger.info(f"[{trace_id}] Successfully generated response with {self.model_name} (length: {len(result)})")
-                return result
+                if response.usage and response.usage.total_tokens:
+                    self.token_counter += response.usage.total_tokens
+
+                result = response.choices[0].message.content
+                if result: return result.strip()
+
             except Exception as e:
-                logger.error(f"[{trace_id}] Error while generating with {self.model_name}:")
-                logger.error(f"[{trace_id}] Input length: {input_length} tokens")
-                logger.error(f"[{trace_id}] Exception: {e}")
-                logger.error(f"[{trace_id}] Retry {cur_retry}/{num_retry}")
-                time.sleep(30)
-                cur_retry += 1
-                continue
-        
-        logger.error(f"[{trace_id}] Failed to generate response after {num_retry} retries")
+                logger.error(f"[{trace_id}] API call failed (attempt {attempt + 1}): {e}")
+                if attempt >= self.config.retry - 1:
+                    raise GenerationError(f"API call failed after retries: {e}") from e
+                backoff_time = 2 ** attempt
+                time.sleep(backoff_time)
         return None

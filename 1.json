@@ -1,44 +1,55 @@
 {
-    "id": "WebQTest-1560_01bd47cf839a907d796deff29832aa26",
-    "question": "Who founded the school where William J. Taverner is a grad student?",
-    "q_entity": "William J. Taverner",
-    "a_entity": "Albert Gallatin",
-    "shortest_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Albert Gallatin"
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what is the name of justin bieber brother\"\n**Current Entity:** \"Justin Bieber\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Justin Bieber\":**\n    ```\n    [REL1] base.popstra.celebrity.breakup-base.popstra.breakup.participant\n[REL2] base.popstra.celebrity.friendship-base.popstra.friendship.participant\n[REL3] celebrities.celebrity.celebrity_friends-celebrities.friendship.friend\n[REL4] people.person.sibling_s-people.sibling_relationship.sibling\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
+    "chosen": [
+        "people.person.sibling_s-people.sibling_relationship.sibling"
     ],
-    "semantic_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Albert Gallatin"
-    ],
-    "negative_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.faculty]->m.0k7hdm5",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.honorary_degrees_awarded]->m.0dgfyqn",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.university.departments]->New York University Department of History",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.mascot]->New York University Bobcat",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution_campus.educational_institution]->New York University"
-    ],
-    "positive_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Albert Gallatin"
+    "rejected": [
+        "base.popstra.celebrity.breakup-base.popstra.breakup.participant",
+        "base.popstra.celebrity.friendship-base.popstra.friendship.participant",
+        "celebrities.celebrity.celebrity_friends-celebrities.friendship.friend"
     ]
 }
 {
-    "id": "WebQTest-1560_01bd47cf839a907d796deff29832aa26",
-    "question": "Who founded the school where William J. Taverner is a grad student?",
-    "q_entity": "William J. Taverner",
-    "a_entity": "Mordecai Manuel Noah",
-    "shortest_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Mordecai Manuel Noah"
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what character did natalie portman play in star wars\"\n**Current Entity:** \"Natalie Portman\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Natalie Portman\":**\n    ```\n    [REL1] film.actor.film-film.performance.character\n[REL2] film.actor.film-film.performance.special_performance_type\n[REL3] tv.tv_actor.guest_roles-tv.tv_guest_role.episodes_appeared_in\n[REL4] tv.tv_actor.guest_roles-tv.tv_guest_role.special_performance_type\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
+    "chosen": [
+        "film.actor.film-film.performance.character"
     ],
-    "semantic_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Mordecai Manuel Noah"
+    "rejected": [
+        "film.actor.film-film.performance.special_performance_type",
+        "tv.tv_actor.guest_roles-tv.tv_guest_role.episodes_appeared_in",
+        "tv.tv_actor.guest_roles-tv.tv_guest_role.special_performance_type"
+    ]
+}
+{
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what country is the grand bahama island in\"\n**Current Entity:** \"Grand Bahama\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Grand Bahama\":**\n    ```\n    [REL1] common.topic.webpage-common.webpage.in_index\n[REL2] location.location.containedby\n[REL3] location.location.nearby_airports\n[REL4] location.location.people_born_here\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
+    "chosen": [
+        "location.location.containedby"
     ],
-    "negative_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.faculty]->m.0k7hdm5",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.honorary_degrees_awarded]->m.0dgfyqn",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.university.departments]->New York University Department of History",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution.mascot]->New York University Bobcat",
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[education.educational_institution_campus.educational_institution]->New York University"
+    "rejected": [
+        "common.topic.webpage-common.webpage.in_index",
+        "location.location.nearby_airports",
+        "location.location.people_born_here"
+    ]
+}
+{
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what kind of money to take to bahamas\"\n**Current Entity:** \"Bahamas\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Bahamas\":**\n    ```\n    [REL1] location.country.currency_used\n[REL2] location.statistical_region.gdp_nominal_per_capita-measurement_unit.dated_money_value.currency\n[REL3] location.statistical_region.gni_in_ppp_dollars-measurement_unit.dated_money_value.currency\n[REL4] location.statistical_region.gni_per_capita_in_ppp_dollars-measurement_unit.dated_money_value.currency\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
+    "chosen": [
+        "location.country.currency_used"
     ],
-    "positive_paths": [
-        "William J. Taverner-[people.person.education]->m.064zwt_ ; m.064zwt_-[education.education.institution]->New York University ; New York University-[organization.organization.founders]->Mordecai Manuel Noah"
+    "rejected": [
+        "location.statistical_region.gdp_nominal_per_capita-measurement_unit.dated_money_value.currency",
+        "location.statistical_region.gni_in_ppp_dollars-measurement_unit.dated_money_value.currency",
+        "location.statistical_region.gni_per_capita_in_ppp_dollars-measurement_unit.dated_money_value.currency"
+    ]
+}
+{
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what character did john noble play in lord of the rings\"\n**Current Entity:** \"John Noble\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"John Noble\":**\n    ```\n    [REL1] film.actor.film-film.performance.character\n[REL2] theater.theater_actor.theater_roles-theater.theater_role.play\n[REL3] theater.theater_actor.theater_roles-theater.theater_role.role\n[REL4] tv.tv_actor.starring_roles-freebase.valuenotation.has_no_value\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
+    "chosen": [
+        "film.actor.film-film.performance.character"
+    ],
+    "rejected": [
+        "theater.theater_actor.theater_roles-theater.theater_role.play",
+        "theater.theater_actor.theater_roles-theater.theater_role.role",
+        "tv.tv_actor.starring_roles-freebase.valuenotation.has_no_value"
     ]
 }

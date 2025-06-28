@@ -36,11 +36,13 @@ except Exception as e:
     print("Ensure you have enough RAM/VRAM. For CPU, you might need >32GB RAM for an 8B model.")
     print("If you have a GPU, ensure CUDA is set up correctly.")
     exit()
-
 # 4. Define the conversation content
-user_question = 'What movie was nominiated with an award titled \"as Robby Ray Stewart\" and featured Taylor Swift?'
-prompt_instruction = "Please generate reasoning paths to answer the question:"
-full_user_message = f"{prompt_instruction} {user_question}"
+prompt_instruction = """Reasoning path is a sequence of triples in the KG that connects the topic entities in the question to answer entities. Given a question, please generate some reasoning paths in the KG starting from the topic entities to answer the question.
+# Question:
+What text is used in the religion that utilies Zhuang Zhou?
+# Topic entities:
+Zhuang Zhou"""
+full_user_message = f"{prompt_instruction}"
 
 # 5. Construct the chat prompt using the tokenizer's chat template
 # Llama 3.1 Instruct models use a specific format for conversations.

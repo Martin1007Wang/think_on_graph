@@ -1,0 +1,18 @@
+usage: create_preference_dataset.py [-h] --input_paths INPUT_PATHS
+                                    [INPUT_PATHS ...]
+                                    [--input_dataset_names [INPUT_DATASET_NAMES ...]]
+                                    [--output_path OUTPUT_PATH]
+                                    --candidate_strategy
+                                    {pn_only,kg_allhop,pn_kg_supplement}
+                                    --positive_source_field
+                                    {positive_paths,shortest_paths}
+                                    [--max_selection_count MAX_SELECTION_COUNT]
+                                    [--enable_relation_sampling]
+                                    [--relation_sampling_threshold RELATION_SAMPLING_THRESHOLD]
+                                    [--num_distractors_to_sample NUM_DISTRACTORS_TO_SAMPLE]
+                                    [--num_samples NUM_SAMPLES]
+                                    [--neo4j_uri NEO4J_URI]
+                                    [--neo4j_user NEO4J_USER]
+                                    [--neo4j_password NEO4J_PASSWORD]
+create_preference_dataset.py: error: the following arguments are required: --candidate_strategy, --positive_source_field
+scripts/create_preference_dataset.sh: line 134: --candidate_strategy: command not found

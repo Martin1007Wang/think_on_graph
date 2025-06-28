@@ -3,9 +3,10 @@
 # --- Configuration Section ---
 
 # Set Neo4j Environment Variables (Consider externalizing these for production)
-export NEO4J_URI="bolt://localhost:7687"
-export NEO4J_USER="neo4j"
-export NEO4J_PASSWORD="Martin1007Wang" # Production: Use env vars or a secure config manager
+# Uses existing env var if set, otherwise defaults.
+export NEO4J_URI="${NEO4J_URI:-bolt://localhost:7687}"
+export NEO4J_USER="${NEO4J_USER:-neo4j}"
+export NEO4J_PASSWORD="${NEO4J_PASSWORD:-Martin1007Wang}" # Production: Use env vars or a secure config manager
 
 # Set Base Work Directory
 BASE_WORKDIR="/mnt/wangjingxiong/think_on_graph" # Main project directory
@@ -16,150 +17,149 @@ ALL_DATASET_NAMES=("webqsp" "cwq") # Example: add other dataset names here e.g.,
 
 SPLIT="train" # Assuming split is the same for all datasets
 
-# Output base directory for prepare_paths.py
-PATH_GENERATION_OUTPUT_BASE="${BASE_WORKDIR}/data/processed"
+# Input path data base directory (where individual dataset path_data.json files are located)
+PATH_DATA_INPUT_BASE="${BASE_WORKDIR}/data/paths"
 
-# Output base directory for create_preference_dataset_with_label.py
-PREFERENCE_DATASET_OUTPUT_BASE="${BASE_WORKDIR}/data/naive_preference_dataset"
+# Output base directory for the combined create_preference_dataset.py script
+PREFERENCE_DATASET_OUTPUT_BASE="${BASE_WORKDIR}/data/preference_dataset" # Changed from naive_preference_dataset to match your latest script
 
 # Base name for the COMBINED preference dataset outputs
-# You can customize this, e.g., by joining dataset names or using a generic name
-COMBINED_PREFERENCE_BASE_OUTPUT_NAME="train" # Example: using first dataset name as base for combined
+# This name will be part of the output directory structure created by the Python script.
+COMBINED_PREFERENCE_BASE_OUTPUT_NAME="${SPLIT}" # Using the split name (e.g., "train")
 
-# Python script names (assuming they are in a 'workflow' subdirectory)
-PREPARE_PATHS_SCRIPT="workflow/prepare_paths.py"
+# Python script names (assuming they are in a 'workflow' subdirectory or accessible via PATH)
+# PREPARE_PATHS_SCRIPT="workflow/prepare_paths.py" # Assuming this is run separately
 CREATE_PREFERENCE_SCRIPT="workflow/create_naive_preference_dataset.py" # Your Python script
 
 # --- DPO Preference Generation Configurations ---
-CANDIDATE_STRATEGIES=("pn_only")
-POSITIVE_SOURCE_FIELDS=("shortest_paths")
+CANDIDATE_STRATEGIES=("pn_only") # Add more strategies if needed: "kg_allhop" "pn_kg_supplement"
+POSITIVE_SOURCE_FIELDS=("shortest_paths") # Add more sources if needed: "positive_paths"
 
-# Common parameters for create_preference_dataset_with_label.py
 MAX_SELECTION_COUNT=5
 NUM_SAMPLES_PREFERENCE=-1 # -1 for all
-# Add sampling parameters if you want to enable them by default:
-# ENABLE_RELATION_SAMPLING="--enable_relation_sampling" # Uncomment to enable
-# RELATION_SAMPLING_THRESHOLD=25
-# NUM_DISTRACTORS_TO_SAMPLE=10
+
+# Log Directory
+LOG_BASE_DIR="${BASE_WORKDIR}/logs_preference_pipeline" # Centralized logs for this pipeline
+
+# --- Helper Functions ---
+log_info() {
+    echo "[INFO] $(date +'%Y-%m-%d %H:%M:%S') - $1"
+}
+
+log_error() {
+    echo "[ERROR] $(date +'%Y-%m-%d %H:%M:%S') - $1" >&2
+}
+
+log_warning() {
+    echo "[WARNING] $(date +'%Y-%m-%d %H:%M:%S') - $1"
+}
+
+check_command_status() {
+    local exit_code=$1
+    local success_msg="$2"
+    local error_msg="$3"
+    local log_file="$4"
+
+    if [ "${exit_code}" -eq 0 ]; then
+        log_info "${success_msg}"
+        return 0
+    else
+        log_error "${error_msg} (Exit code: ${exit_code})"
+        if [ -n "$log_file" ]; then
+            log_error "Please check the log: ${log_file}"
+        fi
+        return 1
+    fi
+}
 
 # --- Script Execution ---
 
-# Navigate to the working directory
-cd "$BASE_WORKDIR" || { echo "Base working directory '$BASE_WORKDIR' does not exist!"; exit 1; }
+# Navigate to the working directory or exit
+cd "$BASE_WORKDIR" || { log_error "Base working directory '$BASE_WORKDIR' does not exist! Exiting."; exit 1; }
 
 # Create Log Directory
-LOGDIR="${BASE_WORKDIR}/logs"
-mkdir -p "$LOGDIR"
+mkdir -p "$LOG_BASE_DIR" || { log_error "Failed to create log directory '$LOG_BASE_DIR'! Exiting."; exit 1; }
 
-# Current Timestamp (for overall script run)
+# Current Timestamp (for unique log file names if script is run multiple times quickly)
 OVERALL_TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
-echo "=================================================================="
-echo "===== STARTING OVERALL DATA PROCESSING PIPELINE - $(date) ====="
-echo "=================================================================="
-echo "Processing datasets to combine: ${ALL_DATASET_NAMES[*]}"
-echo "Split: ${SPLIT}"
-echo "Base Work Directory: ${BASE_WORKDIR}"
-echo "Logging to directory: ${LOGDIR}"
+log_info "===== STARTING COMBINED PREFERENCE DATASET PROCESSING PIPELINE ====="
+log_info "Processing datasets to combine: ${ALL_DATASET_NAMES[*]}"
+log_info "Split: ${SPLIT}"
+log_info "Base Work Directory: ${BASE_WORKDIR}"
+log_info "Logging to directory: ${LOG_BASE_DIR}"
 echo "------------------------------------------------------------------"
 
-# === MODIFICATION: Collect all input path files first ===
+# STEP 1: Collect all input path files
+log_info "STEP 1: Collecting prerequisite path data files for each dataset..."
 ALL_INPUT_PATH_FILES=() # Initialize an empty array to store paths
 
-for DATASET_NAME in "${ALL_DATASET_NAMES[@]}"; do
-    echo ""
-    echo "--- Locating path data for DATASET: ${DATASET_NAME} ---"
+for DATASET_NAME_ITER in "${ALL_DATASET_NAMES[@]}"; do
+    log_info "--- Checking path data for DATASET: ${DATASET_NAME_ITER} ---"
 
-    # --- Dataset-specific Configurations for path location ---
-    PATH_OUTPUT_DIR_NAME="${DATASET_NAME}_${SPLIT}"
-    GENERATED_PATH_DATA_FILE="${PATH_GENERATION_OUTPUT_BASE}/${PATH_OUTPUT_DIR_NAME}/path_data.json"
-    PATH_LOG="${LOGDIR}/prepare_paths_${DATASET_NAME}_${SPLIT}_${OVERALL_TIMESTAMP}.log" # Log for individual path prep (if active)
+    # Construct the expected path to the path_data.json file for the current dataset
+    CURRENT_PATH_DATA_DIR="${PATH_DATA_INPUT_BASE}/${DATASET_NAME_ITER}_${SPLIT}"
+    CURRENT_GENERATED_PATH_DATA_FILE="${CURRENT_PATH_DATA_DIR}/path_data.json"
 
-    # STEP 1: Generate Path Data (if not already generated) for the current DATASET_NAME
-    # This step is run once for the current dataset and split.
-    # If STEP 1 is commented out, this script assumes GENERATED_PATH_DATA_FILE already exists.
-    echo "STEP 1 (Per Dataset): Checking/Generating path data for ${DATASET_NAME}..."
-    echo "Path data file expected at: ${GENERATED_PATH_DATA_FILE}"
-    # echo "Log file for path generation (if active): ${PATH_LOG}" # Uncomment if STEP 1 is active
-
-    # # Create the output directory for prepare_paths.py if it doesn't exist
-    # mkdir -p "${PATH_GENERATION_OUTPUT_BASE}/${PATH_OUTPUT_DIR_NAME}"
-
-    # # Call prepare_paths.py for the current DATASET_NAME
-    # python "$PREPARE_PATHS_SCRIPT" \
-    #     --data_path "${BASE_WORKDIR}/data/processed/rmanluo_RoG-${DATASET_NAME}_${SPLIT}" \ # INITIAL_DATA_INPUT_DIR specific to dataset
-    #     --dataset_name "$DATASET_NAME" \
-    #     --split "$SPLIT" \
-    #     --output_path "$PATH_GENERATION_OUTPUT_BASE" \
-    #     --output_name "$PATH_OUTPUT_DIR_NAME" \
-    #     --neo4j_uri "$NEO4J_URI" \
-    #     --neo4j_user "$NEO4J_USER" \
-    #     --neo4j_password "$NEO4J_PASSWORD" \
-    #     # ... other args for prepare_paths.py ...
-    #     2>&1 | tee "$PATH_LOG"
-
-    if [ ! -f "$GENERATED_PATH_DATA_FILE" ]; then
-        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        echo "ERROR: Path data file '$GENERATED_PATH_DATA_FILE' for dataset '${DATASET_NAME}' not found!"
-        echo "This file is required for combined processing. Please ensure it exists or STEP 1 runs successfully."
-        # echo "Check log (if STEP 1 was active): $PATH_LOG" # Uncomment if STEP 1 is active
-        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        # Decide if you want to exit or just skip this file
-        # exit 1 # Exit if any file is missing
-        echo "SKIPPING dataset ${DATASET_NAME} due to missing path file."
-        continue # Skip to next dataset if a file is missing
+    if [ ! -f "$CURRENT_GENERATED_PATH_DATA_FILE" ]; then
+        log_warning "Path data file '$CURRENT_GENERATED_PATH_DATA_FILE' for dataset '${DATASET_NAME_ITER}' not found!"
+        log_warning "This dataset will be SKIPPED for combined processing."
+        # Optionally, you could choose to exit if any file is missing:
+        # log_error "Exiting because a required path data file is missing."
+        # exit 1
+        continue # Skip to next dataset
     else
-        echo "SUCCESS: Path data file found for ${DATASET_NAME}: $GENERATED_PATH_DATA_FILE"
-        ALL_INPUT_PATH_FILES+=("$GENERATED_PATH_DATA_FILE") # Add found file to the list
+        log_info "Found path data file for ${DATASET_NAME_ITER}: $CURRENT_GENERATED_PATH_DATA_FILE"
+        ALL_INPUT_PATH_FILES+=("$CURRENT_GENERATED_PATH_DATA_FILE") # Add found file to the list
     fi
     echo "------------------------------------------------------------------"
 done
 
 # Check if any files were collected
 if [ ${#ALL_INPUT_PATH_FILES[@]} -eq 0 ]; then
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "ERROR: No input path files were found or collected. Cannot proceed with combined preference dataset creation."
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    log_error "No input path files were found or collected. Cannot proceed with combined preference dataset creation."
     exit 1
 fi
 
-echo ""
-echo "Collected input files for combined processing: ${ALL_INPUT_PATH_FILES[*]}"
+log_info "Collected input files for combined processing: ${ALL_INPUT_PATH_FILES[*]}"
 echo "------------------------------------------------------------------"
 
 # STEP 2: Create ONE Preference Dataset by combining all collected input files
-echo "STEP 2: Running ${CREATE_PREFERENCE_SCRIPT} to create a single COMBINED preference dataset..."
-echo "Using input files: ${ALL_INPUT_PATH_FILES[*]}"
-echo "Base output directory for preference datasets: ${PREFERENCE_DATASET_OUTPUT_BASE}"
-echo "Combined output base name: ${COMBINED_PREFERENCE_BASE_OUTPUT_NAME}"
-echo "------------------------------------------------------------------"
+log_info "STEP 2: Running ${CREATE_PREFERENCE_SCRIPT} to create a single COMBINED preference dataset..."
+
+# Check if the Python script exists
+if [ ! -f "$CREATE_PREFERENCE_SCRIPT" ]; then
+    log_error "Python script '$CREATE_PREFERENCE_SCRIPT' not found! Exiting."
+    exit 1
+fi
 
 TOTAL_CONFIGS_COMBINED=$(( ${#CANDIDATE_STRATEGIES[@]} * ${#POSITIVE_SOURCE_FIELDS[@]} ))
-CURRENT_CONFIG_COMBINED=0
+PROCESSED_CONFIGS_COMBINED=0
 FAILED_CONFIGS_COMBINED=0
 
 for strategy in "${CANDIDATE_STRATEGIES[@]}"; do
     for positive_source in "${POSITIVE_SOURCE_FIELDS[@]}"; do
-        CURRENT_CONFIG_COMBINED=$((CURRENT_CONFIG_COMBINED + 1))
+        PROCESSED_CONFIGS_COMBINED=$((PROCESSED_CONFIGS_COMBINED + 1))
         echo ""
-        echo "--- Processing Combined Configuration ${CURRENT_CONFIG_COMBINED}/${TOTAL_CONFIGS_COMBINED} ---"
-        echo "Candidate Strategy: ${strategy}"
-        echo "Positive Source Field: ${positive_source}"
+        log_info "--- Processing Combined Configuration ${PROCESSED_CONFIGS_COMBINED}/${TOTAL_CONFIGS_COMBINED} ---"
+        log_info "Candidate Strategy: ${strategy}"
+        log_info "Positive Source Field: ${positive_source}"
 
-        # Dynamic log file for this specific preference dataset configuration
-        CURRENT_PREFERENCE_LOG="${LOGDIR}/create_preference_COMBINED_${COMBINED_PREFERENCE_BASE_OUTPUT_NAME}_${strategy}_${positive_source}_${OVERALL_TIMESTAMP}.log"
-        echo "Log file for this configuration: ${CURRENT_PREFERENCE_LOG}"
+        CURRENT_PREFERENCE_LOG="${LOG_BASE_DIR}/create_preference_COMBINED_${COMBINED_PREFERENCE_BASE_OUTPUT_NAME}_${strategy}_${positive_source}_${OVERALL_TIMESTAMP}.log"
+        log_info "Log file for this configuration: ${CURRENT_PREFERENCE_LOG}"
 
-        # Output subdir for the combined dataset
-        EXPECTED_OUTPUT_SUBDIR="${COMBINED_PREFERENCE_BASE_OUTPUT_NAME}_cand_${strategy}_pos_${positive_source}"
-        FULL_EXPECTED_OUTPUT_DIR="${PREFERENCE_DATASET_OUTPUT_BASE}/${EXPECTED_OUTPUT_SUBDIR}"
+        # *** MODIFIED LINE TO MATCH PYTHON SCRIPT'S OUTPUT NAMING CONVENTION ***
+        EXPECTED_OUTPUT_SUBDIR_NAME="${COMBINED_PREFERENCE_BASE_OUTPUT_NAME}_cand_${strategy}_pos_${positive_source}"
+        FULL_EXPECTED_OUTPUT_DIR="${PREFERENCE_DATASET_OUTPUT_BASE}/${EXPECTED_OUTPUT_SUBDIR_NAME}"
 
         SAMPLING_ARGS=""
-        # if [ -n "$ENABLE_RELATION_SAMPLING" ]; then
-        #     SAMPLING_ARGS="$ENABLE_RELATION_SAMPLING --relation_sampling_threshold $RELATION_SAMPLING_THRESHOLD --num_distractors_to_sample $NUM_DISTRACTORS_TO_SAMPLE"
+        # if [ -n "$ENABLE_RELATION_SAMPLING_FLAG" ]; then # Check if the flag variable is non-empty
+        #     SAMPLING_ARGS="${ENABLE_RELATION_SAMPLING_FLAG} --relation_sampling_threshold ${RELATION_SAMPLING_THRESHOLD} --num_distractors_to_sample ${NUM_DISTRACTORS_TO_SAMPLE}"
         # fi
 
-        python "$CREATE_PREFERENCE_SCRIPT" \
+        # Note: The --input_files argument in the Python script expects nargs='+'
+        # Passing the bash array "${ALL_INPUT_PATH_FILES[@]}" will expand to separate arguments.
+        ( python "$CREATE_PREFERENCE_SCRIPT" \
             --input_files "${ALL_INPUT_PATH_FILES[@]}" \
             --output_path "$PREFERENCE_DATASET_OUTPUT_BASE" \
             --base_output_name "$COMBINED_PREFERENCE_BASE_OUTPUT_NAME" \
@@ -170,16 +170,24 @@ for strategy in "${CANDIDATE_STRATEGIES[@]}"; do
             --neo4j_user "$NEO4J_USER" \
             --neo4j_password "$NEO4J_PASSWORD" \
             --num_samples "$NUM_SAMPLES_PREFERENCE" \
-            $SAMPLING_ARGS \
-            2>&1 | tee "$CURRENT_PREFERENCE_LOG"
+            ${SAMPLING_ARGS} \
+        ) > "$CURRENT_PREFERENCE_LOG" 2>&1
+        
+        SCRIPT_EXIT_CODE=$?
 
-        if [ ${PIPESTATUS[0]} -eq 0 ] && [ -d "$FULL_EXPECTED_OUTPUT_DIR" ]; then
-            echo "SUCCESS: COMBINED Preference dataset generated for [Strategy: ${strategy}, Source: ${positive_source}]"
-            echo "Output at: ${FULL_EXPECTED_OUTPUT_DIR}"
+        if check_command_status "${SCRIPT_EXIT_CODE}" \
+            "COMBINED Preference dataset generation SUCCEEDED for [Strategy: ${strategy}, Source: ${positive_source}]" \
+            "COMBINED Preference dataset generation FAILED for [Strategy: ${strategy}, Source: ${positive_source}]" \
+            "$CURRENT_PREFERENCE_LOG"; then
+            
+            if [ -d "$FULL_EXPECTED_OUTPUT_DIR" ]; then
+                 log_info "Output directory verified at: ${FULL_EXPECTED_OUTPUT_DIR}"
+            else
+                 log_warning "Output directory ${FULL_EXPECTED_OUTPUT_DIR} was NOT found, though script exited successfully. Please check script's output logic and naming consistency."
+                 # Consider this a failure if the directory is essential and script should have created it
+                 # FAILED_CONFIGS_COMBINED=$((FAILED_CONFIGS_COMBINED + 1)) 
+            fi
         else
-            echo "ERROR: COMBINED Preference dataset creation FAILED for [Strategy: ${strategy}, Source: ${positive_source}]"
-            echo "Please check the log: ${CURRENT_PREFERENCE_LOG}"
-            echo "Expected output directory: ${FULL_EXPECTED_OUTPUT_DIR}"
             FAILED_CONFIGS_COMBINED=$((FAILED_CONFIGS_COMBINED + 1))
         fi
         echo "----------------------------------------"
@@ -187,17 +195,14 @@ for strategy in "${CANDIDATE_STRATEGIES[@]}"; do
 done # end strategy loop
 
 echo ""
-echo "=================================================================="
-echo "===== OVERALL DATA PROCESSING PIPELINE COMPLETED - $(date) ====="
-echo "=================================================================="
-echo "Input path files used for combined processing: ${ALL_INPUT_PATH_FILES[*]}"
-echo ""
-echo "Combined Preference Dataset Generation Summary:"
-echo "Total configurations processed: ${CURRENT_CONFIG_COMBINED}"
-echo "Successful configurations: $((CURRENT_CONFIG_COMBINED - FAILED_CONFIGS_COMBINED))"
-echo "Failed configurations: ${FAILED_CONFIGS_COMBINED}"
-echo "Logs for preference dataset generation are in: ${LOGDIR} (prefixed with 'create_preference_COMBINED_')"
-echo "Generated preference datasets are under: ${PREFERENCE_DATASET_OUTPUT_BASE}"
+log_info "===== OVERALL DATA PROCESSING PIPELINE SUMMARY ====="
+log_info "Input path files used for combined processing: ${ALL_INPUT_PATH_FILES[*]}"
+log_info "Combined Preference Dataset Generation Summary:"
+log_info "Total configurations processed: ${PROCESSED_CONFIGS_COMBINED}"
+log_info "Successful configurations: $((PROCESSED_CONFIGS_COMBINED - FAILED_CONFIGS_COMBINED))"
+log_info "Failed configurations: ${FAILED_CONFIGS_COMBINED}"
+log_info "Logs for preference dataset generation are in: ${LOG_BASE_DIR}"
+log_info "Generated preference datasets (if successful) are under: ${PREFERENCE_DATASET_OUTPUT_BASE}"
 echo "=================================================================="
 
 if [ $FAILED_CONFIGS_COMBINED -gt 0 ]; then

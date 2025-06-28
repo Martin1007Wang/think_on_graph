@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-#  DPO Fine-tuning Launcher Script for KG-Specialized LLM
+#  MPO Fine-tuning Launcher Script for KG-Specialized LLM
 # ==============================================================================
 
 set -e
@@ -25,7 +25,8 @@ DATASET_CONFIG_TAG="cand_${CANDIDATE_STRATEGY}_pos_${POSITIVE_SOURCE_FIELD}/hf_d
 DATA_PATH_LIST="${BASE_PROJECT_DIR}/data/${DATASET_TYPE}/${DATASET_CONFIG_TAG}"
 
 # --- Script Path Configuration ---
-PYTHON_SCRIPT_PATH="${BASE_PROJECT_DIR}/workflow/finetune_kg_specialized_llm_dpo.py"
+# Assuming your Python script is named mpo_training_script.py now
+PYTHON_SCRIPT_PATH="${BASE_PROJECT_DIR}/workflow/finetune_kg_specialized_llm_mpo.py"
 
 
 # --- Core Training Hyperparameters ---
@@ -41,7 +42,7 @@ LOAD_IN_8BIT=False
 
 # Training Strategy
 NUM_TRAIN_EPOCHS=1
-PER_DEVICE_TRAIN_BATCH_SIZE=16
+PER_DEVICE_TRAIN_BATCH_SIZE=8
 GRADIENT_ACCUMULATION_STEPS=8
 GRADIENT_CHECKPOINTING=True
 LEARNING_RATE=1e-5
@@ -51,12 +52,11 @@ WEIGHT_DECAY=0.0
 BF16=True
 ATTN_IMPLEMENTATION="flash_attention_2"
 
-# DPO Specifics
+# MPO Specifics (Updated from DPO)
 BETA=0.1
-LOSS_TYPE="ipo"
-MAX_LENGTH=4096
-MAX_PROMPT_LENGTH=1024
-PRECOMPUTE_REF_LOG_PROBS=False
+SFT_LOSS_WEIGHT=0.05 # New MPO parameter for IPO-style regularization
+MAX_LENGTH=1024
+MAX_PROMPT_LENGTH=512
 
 # Logging & Saving
 SAVE_MERGED=True
@@ -70,15 +70,16 @@ MODEL_BASENAME=$(basename "$MODEL_PATH")
 
 RUN_SPECIFIC_NAME="${MODEL_BASENAME}"
 RUN_SPECIFIC_NAME+="_ep${NUM_TRAIN_EPOCHS}"
-RUN_SPECIFIC_NAME+="_loss-${LOSS_TYPE}"
+RUN_SPECIFIC_NAME+="_loss-mpo" # Indicate MPO loss
 RUN_SPECIFIC_NAME+="_b${BETA}"
+RUN_SPECIFIC_NAME+="_sft${SFT_LOSS_WEIGHT}" # Add SFT weight to name
 RUN_SPECIFIC_NAME+="_lr${LEARNING_RATE}"
 if [ "${USE_PEFT}" = "True" ]; then
     RUN_SPECIFIC_NAME+="_lora-r${LORA_R}-a${LORA_ALPHA}"
 fi
 RUN_SPECIFIC_NAME+="_bf16"
 
-SAVE_PATH="${BASE_PROJECT_DIR}/ipo_models/${DATASET_CONFIG_TAG}/${RUN_SPECIFIC_NAME}"
+SAVE_PATH="${BASE_PROJECT_DIR}/mpo_models/${DATASET_CONFIG_TAG}/${RUN_SPECIFIC_NAME}"
 WANDB_RUN_NAME="${DATASET_CONFIG_TAG}/${RUN_SPECIFIC_NAME}"
 
 # --- Sanity Checks ---
@@ -100,15 +101,15 @@ fi
 
 # --- Display Configuration ---
 echo "========================================================"
-echo "🚀 Starting DPO Fine-tuning with Accelerate..."
+echo "🚀 Starting MPO Fine-tuning with Accelerate..."
 echo "========================================================"
-echo "🔹 Model:                ${MODEL_PATH}"
-echo "🔹 Dataset:              ${DATASET_CONFIG_TAG}"
-echo "🔹 Output Path:          ${SAVE_PATH}"
-echo "🔹 WandB Run Name:       ${WANDB_RUN_NAME}"
-echo "🔹 LoRA Config:          R=${LORA_R}, Alpha=${LORA_ALPHA}"
-echo "🔹 DPO Config:           Loss=${LOSS_TYPE}, Beta=${BETA}"
-echo "🔹 Training Config:      Epochs=${NUM_TRAIN_EPOCHS}, LR=${LEARNING_RATE}"
+echo "🔹 Model:               ${MODEL_PATH}"
+echo "🔹 Dataset:             ${DATASET_CONFIG_TAG}"
+echo "🔹 Output Path:         ${SAVE_PATH}"
+echo "🔹 WandB Run Name:      ${WANDB_RUN_NAME}"
+echo "🔹 LoRA Config:         R=${LORA_R}, Alpha=${LORA_ALPHA}"
+echo "🔹 MPO Config:          Beta=${BETA}, SFT Weight=${SFT_LOSS_WEIGHT}"
+echo "🔹 Training Config:     Epochs=${NUM_TRAIN_EPOCHS}, LR=${LEARNING_RATE}"
 echo "🔹 Effective Batch Size: $((PER_DEVICE_TRAIN_BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS)) (single-node)"
 echo "========================================================"
 
@@ -126,7 +127,7 @@ CMD_ARGS=(
     "--target_modules" "${TARGET_MODULES}"
     "--save_merged" "${SAVE_MERGED}"
 
-    # Model Loading (consistent with pre-quantized model)
+    # Model Loading
     "--load_in_4bit" "${LOAD_IN_4BIT}"
     "--load_in_8bit" "${LOAD_IN_8BIT}"
 
@@ -149,12 +150,11 @@ CMD_ARGS=(
     "--dataloader_num_workers" "0"
     "--dataloader_pin_memory" "true"
 
-    # DPO Specific Arguments
+    # MPO Specific Arguments (Updated)
     "--beta" "${BETA}"
-    "--loss_type" "${LOSS_TYPE}"
+    "--sft_loss_weight" "${SFT_LOSS_WEIGHT}"
     "--max_length" "${MAX_LENGTH}"
     "--max_prompt_length" "${MAX_PROMPT_LENGTH}"
-    "--precompute_ref_log_probs" "${PRECOMPUTE_REF_LOG_PROBS}"
 )
 
 if [ -n "${ATTN_IMPLEMENTATION:-}" ]; then
@@ -163,17 +163,18 @@ fi
 
 # --- Launch Training ---
 echo "INFO: Executing command..."
+# Note: Ensure your accelerate config file is correctly set up.
 accelerate launch --config_file accelerate_configs/single_gpu.yaml "${PYTHON_SCRIPT_PATH}" "${CMD_ARGS[@]}"
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     echo "--------------------------------------------------------"
-    echo "✅ DPO Fine-tuning completed successfully."
+    echo "✅ MPO Fine-tuning completed successfully."
     echo "✅ Model saved to: ${SAVE_PATH}"
     echo "--------------------------------------------------------"
 else
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "❌ DPO Fine-tuning FAILED with exit code $EXIT_CODE."
+    echo "❌ MPO Fine-tuning FAILED with exit code $EXIT_CODE."
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 fi
 

@@ -1,22 +1,15 @@
 {
-    "id": "WebQTest-538_e767ac9ea2c1ea9896e9267b30ea9306",
-    "question": "What movie was nominiated with an award titled \"as Robby Ray Stewart\" and featured Taylor Swift?",
-    "q_entity": "Taylor Swift",
-    "a_entity": "Hannah Montana: The Movie",
-    "shortest_paths": [
-        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.film]->Hannah Montana: The Movie"
-    ],
-    "semantic_paths": [
-        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.film]->Hannah Montana: The Movie"
-    ],
-    "negative_paths": [
-        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.special_performance_type]->Him/Herself",
-        "Taylor Swift-[film.writer.film]->Taylor Swift: Speak Now World Tour Live",
-        "Taylor Swift-[film.person_or_entity_appearing_in_film.films]->m.0w5xdz9",
-        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.actor]->Taylor Swift",
-        "Taylor Swift-[film.producer.film]->Taylor Swift: Speak Now World Tour Live"
-    ],
-    "positive_paths": [
-        "Taylor Swift-[film.actor.film]->m.0ysr8tn ; m.0ysr8tn-[film.performance.film]->Hannah Montana: The Movie"
-    ]
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"What language is spoken in the country whose government body is called \"Althing?\"?\"\n**Current Entity:** \"Althing\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\n**Available Relations for \"Althing\":**\n    ```\n          government.governmental_body.jurisdiction\n      government.governmental_body.members-government.government_position_held.basic_title\n      government.governmental_body.members-government.government_position_held.district_represented\n      government.governmental_body.members-government.government_position_held.jurisdiction_of_office\n    ```\n**Output Requirements:**\n* Respond ONLY with the selected relations. NO other text, explanations, or comments.\n* Each selected relation MUST be an **exact, verbatim copy** of a complete line from the 'Available Relations' list above.\n* Output EACH selected relation on a **new line**.\n**Example of Correct Output Format (if REL_A and REL_B were selected):**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n**Your Selection:**",
+    "chosen": "government.governmental_body.jurisdiction\ngovernment.governmental_body.members-government.government_position_held.jurisdiction_of_office",
+    "rejected": "government.governmental_body.members-government.government_position_held.basic_title\ngovernment.governmental_body.members-government.government_position_held.district_represented",
+}
+{
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"What language is spoken in the country whose government body is called \"Althing?\"?\"\n**Current Entity:** \"Iceland\"\n**Past Steps & Findings:** \"* Exploration History:\n  Step 1: From 'Althing' explored relation 'government.governmental_body.members-government.government_position_held.jurisdiction_of_office', leading to 'Iceland'.\n\"\n\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\n**Available Relations for \"Iceland\":**\n    ```\n          location.country.capital\n      location.country.form_of_government\n      location.country.languages_spoken\n      location.country.official_language\n    ```\n**Output Requirements:**\n* Respond ONLY with the selected relations. NO other text, explanations, or comments.\n* Each selected relation MUST be an **exact, verbatim copy** of a complete line from the 'Available Relations' list above.\n* Output EACH selected relation on a **new line**.\n**Example of Correct Output Format (if REL_A and REL_B were selected):**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n**Your Selection:**",
+    "chosen": "location.country.languages_spoken\nlocation.country.official_language",
+    "rejected": "location.country.capital\nlocation.country.form_of_government",
+}
+{
+    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"What language is spoken in the country whose government body is called \"Althing?\"?\"\n**Current Entity:** \"Iceland\"\n**Past Steps & Findings:** \"* Exploration History:\n  Step 1: From 'Althing' explored relation 'government.governmental_body.jurisdiction', leading to 'Iceland'.\n\"\n\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\n**Available Relations for \"Iceland\":**\n    ```\n          location.country.capital\n      location.country.form_of_government\n      location.country.languages_spoken\n      location.country.official_language\n    ```\n**Output Requirements:**\n* Respond ONLY with the selected relations. NO other text, explanations, or comments.\n* Each selected relation MUST be an **exact, verbatim copy** of a complete line from the 'Available Relations' list above.\n* Output EACH selected relation on a **new line**.\n**Example of Correct Output Format (if REL_A and REL_B were selected):**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n**Your Selection:**",
+    "chosen": "location.country.languages_spoken\nlocation.country.official_language",
+    "rejected": "location.country.capital\nlocation.country.form_of_government",
 }

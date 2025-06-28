@@ -147,19 +147,6 @@ def extract_topk_prediction(prediction_input, k=-1):
 
 
 def eval_path_result_w_ans(predict_file_path: str, cal_f1: bool = True, topk: int = -1, output_path_prefix: str = None):
-    """
-    评估预测文件中的每一行，计算指标。
-    'predict_file_path': 预测文件的路径 (JSONL格式)。
-    'cal_f1': 是否计算F1, Precision, Recall (使用基于集合的精确匹配)。
-    'topk': 从每个样本的预测中考虑top-k项 (基于extract_topk_prediction的逻辑)。
-             -1 表示全部。
-    'output_path_prefix': 如果提供，则详细评估结果和总结结果将保存在以此为前缀的目录/文件名中。
-                         例如，如果 output_path_prefix = "results/my_experiment",
-                         则文件会是 "results/my_experiment_detailed_eval_top_k.jsonl"
-                         和 "results/my_experiment_eval_result_top_k.txt"。
-                         如果为 None，则在 predict_file_path 相同目录下生成。
-    """
-    
     base_dir = os.path.dirname(predict_file_path)
     base_filename = os.path.basename(predict_file_path)
 
