@@ -1,55 +1,180 @@
 {
-    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what is the name of justin bieber brother\"\n**Current Entity:** \"Justin Bieber\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Justin Bieber\":**\n    ```\n    [REL1] base.popstra.celebrity.breakup-base.popstra.breakup.participant\n[REL2] base.popstra.celebrity.friendship-base.popstra.friendship.participant\n[REL3] celebrities.celebrity.celebrity_friends-celebrities.friendship.friend\n[REL4] people.person.sibling_s-people.sibling_relationship.sibling\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
-    "chosen": [
-        "people.person.sibling_s-people.sibling_relationship.sibling"
+    "id": "WebQTrn-241_dfb6c97ac9bf2f0ac07f27dd80f9edc2",
+    "original_question": "What country bordering France contains an airport that serves Nijmegen?",
+    "ground_truth": [
+        "Germany"
     ],
-    "rejected": [
-        "base.popstra.celebrity.breakup-base.popstra.breakup.participant",
-        "base.popstra.celebrity.friendship-base.popstra.friendship.participant",
-        "celebrities.celebrity.celebrity_friends-celebrities.friendship.friend"
-    ]
-}
-{
-    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what character did natalie portman play in star wars\"\n**Current Entity:** \"Natalie Portman\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Natalie Portman\":**\n    ```\n    [REL1] film.actor.film-film.performance.character\n[REL2] film.actor.film-film.performance.special_performance_type\n[REL3] tv.tv_actor.guest_roles-tv.tv_guest_role.episodes_appeared_in\n[REL4] tv.tv_actor.guest_roles-tv.tv_guest_role.special_performance_type\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
-    "chosen": [
-        "film.actor.film-film.performance.character"
+    "final_answer_entities": [
+        "Belgium"
     ],
-    "rejected": [
-        "film.actor.film-film.performance.special_performance_type",
-        "tv.tv_actor.guest_roles-tv.tv_guest_role.episodes_appeared_in",
-        "tv.tv_actor.guest_roles-tv.tv_guest_role.special_performance_type"
-    ]
-}
-{
-    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what country is the grand bahama island in\"\n**Current Entity:** \"Grand Bahama\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Grand Bahama\":**\n    ```\n    [REL1] common.topic.webpage-common.webpage.in_index\n[REL2] location.location.containedby\n[REL3] location.location.nearby_airports\n[REL4] location.location.people_born_here\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
-    "chosen": [
-        "location.location.containedby"
+    "reasoning_path": [
+        "Nijmegen --[location.location.containedby]--> Netherlands",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Belgium",
+        "Nijmegen --[location.administrative_division.second_level_division_of]--> Netherlands",
+        "Nijmegen --[location.location.containedby]--> Netherlands",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Belgium",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Germany",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Luxembourg",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Switzerland",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Italy",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Spain",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Andorra",
+        "France --[location.location.adjoin_s-location.adjoining_relationship.adjoins]--> Monaco"
     ],
-    "rejected": [
-        "common.topic.webpage-common.webpage.in_index",
-        "location.location.nearby_airports",
-        "location.location.people_born_here"
-    ]
-}
-{
-    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what kind of money to take to bahamas\"\n**Current Entity:** \"Bahamas\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"Bahamas\":**\n    ```\n    [REL1] location.country.currency_used\n[REL2] location.statistical_region.gdp_nominal_per_capita-measurement_unit.dated_money_value.currency\n[REL3] location.statistical_region.gni_in_ppp_dollars-measurement_unit.dated_money_value.currency\n[REL4] location.statistical_region.gni_per_capita_in_ppp_dollars-measurement_unit.dated_money_value.currency\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
-    "chosen": [
-        "location.country.currency_used"
+    "final_reasoning_summary": "From the Exploration History, we know that Nijmegen is located in the Netherlands, and France borders several countries, including Belgium. Since the Netherlands does not border France, the airport serving Nijmegen must be in a neighboring country of France that is also accessible to Nijmegen. Belgium is the most plausible choice as it borders both France and the Netherlands, making it the likely country containing the airport serving Nijmegen. Thus, the answer is Belgium.",
+    "answer_found": false,
+    "fallback_used": true,
+    "exploration_trace": [
+        {
+            "round_num": 1,
+            "question": "What country bordering France contains an airport that serves Nijmegen?",
+            "entity": "Nijmegen",
+            "relations": [
+                {
+                    "name": "location.administrative_division.second_level_division_of",
+                    "targets": [
+                        "Netherlands"
+                    ]
+                },
+                {
+                    "name": "base.aareas.schema.administrative_area.administrative_parent",
+                    "targets": [
+                        "Gelderland"
+                    ]
+                },
+                {
+                    "name": "location.location.containedby",
+                    "targets": [
+                        "Gelderland",
+                        "Kingdom of the Netherlands",
+                        "Netherlands"
+                    ]
+                }
+            ]
+        },
+        {
+            "round_num": 1,
+            "question": "What country bordering France contains an airport that serves Nijmegen?",
+            "entity": "Country",
+            "relations": [
+                {
+                    "name": "award.award_nominated_work.award_nominations-award.award_nomination.award_nominee",
+                    "targets": [
+                        "Jessica Lange"
+                    ]
+                },
+                {
+                    "name": "film.film.distributors-film.film_film_distributor_relationship.distributor",
+                    "targets": [
+                        "Touchstone Pictures"
+                    ]
+                },
+                {
+                    "name": "base.ontologies.ontology_instance.equivalent_instances-base.ontologies.ontology_instance_mapping.ontology",
+                    "targets": [
+                        "OpenCyc"
+                    ]
+                }
+            ]
+        },
+        {
+            "round_num": 1,
+            "question": "What country bordering France contains an airport that serves Nijmegen?",
+            "entity": "France",
+            "relations": [
+                {
+                    "name": "location.location.adjoin_s-location.adjoining_relationship.adjoins",
+                    "targets": [
+                        "Italy",
+                        "Andorra",
+                        "Atlantic Ocean",
+                        "Luxembourg",
+                        "Belgium",
+                        "Piedmont",
+                        "Dover",
+                        "Flanders",
+                        "Bay of Biscay",
+                        "North Sea",
+                        "Monaco",
+                        "Province of Turin",
+                        "United Kingdom",
+                        "Switzerland",
+                        "Spain",
+                        "Mediterranean Sea",
+                        "Germany",
+                        "English Channel",
+                        "Strait of Dover"
+                    ]
+                },
+                {
+                    "name": "location.statistical_region.places_exported_to-location.imports_and_exports.exported_to",
+                    "targets": [
+                        "Andorra",
+                        "Angola",
+                        "Sudan",
+                        "Madagascar",
+                        "Algeria",
+                        "United States of America"
+                    ]
+                },
+                {
+                    "name": "sports.sport_country.athletic_performances-sports.competitor_competition_relationship.competitors",
+                    "targets": [
+                        "Sébastien Bosquet"
+                    ]
+                }
+            ]
+        },
+        {
+            "round_num": 2,
+            "question": "What airports serve Nijmegen and are located in a country that borders France?",
+            "entity": "Netherlands",
+            "relations": [
+                {
+                    "name": "sports.sport_country.athletic_performances-sports.competitor_competition_relationship.competitors",
+                    "targets": [
+                        "Sifan Hassan",
+                        "Rob Druppers",
+                        "Lesley Kerkhove",
+                        "Susan Kuijken",
+                        "Irene Schmidt",
+                        "Bibian Mentel",
+                        "Nadine Broersen"
+                    ]
+                },
+                {
+                    "name": "base.sharing.sharing_location.shared_here-base.sharing.sharing_relationship.shares",
+                    "targets": [
+                        "Parking space"
+                    ]
+                },
+                {
+                    "name": "government.governmental_jurisdiction.governing_officials-government.government_position_held.office_holder",
+                    "targets": [
+                        "Dries van Agt",
+                        "Mathias Voges",
+                        "Wouter Bos",
+                        "Jo Cals",
+                        "Jelle Zijlstra",
+                        "Job Cohen",
+                        "Barend Biesheuvel",
+                        "Jan Peter Balkenende",
+                        "Sheldry Osepa",
+                        "Ruud Lubbers",
+                        "Maxime Verhagen",
+                        "Edith Schippers",
+                        "Eric Wiebes",
+                        "Neelie Kroes",
+                        "Joop den Uyl",
+                        "Edwin Abath",
+                        "Piet de Jong",
+                        "Wim Kok"
+                    ]
+                }
+            ]
+        }
     ],
-    "rejected": [
-        "location.statistical_region.gdp_nominal_per_capita-measurement_unit.dated_money_value.currency",
-        "location.statistical_region.gni_in_ppp_dollars-measurement_unit.dated_money_value.currency",
-        "location.statistical_region.gni_per_capita_in_ppp_dollars-measurement_unit.dated_money_value.currency"
-    ]
-}
-{
-    "prompt": "**Role:** KG Strategist\n**Objective:** Identify paths to answer: \"what character did john noble play in lord of the rings\"\n**Current Entity:** \"John Noble\"\n**Task:** From the 'Available Relations' listed below, select **up to 5** distinct relations.\nYou MUST choose relations that are MOST LIKELY to lead to relevant information for the Objective.\nThe relations you select MUST come EXACTLY from the 'Available Relations' list provided.\n**Available Relations for \"John Noble\":**\n    ```\n    [REL1] film.actor.film-film.performance.character\n[REL2] theater.theater_actor.theater_roles-theater.theater_role.play\n[REL3] theater.theater_actor.theater_roles-theater.theater_role.role\n[REL4] tv.tv_actor.starring_roles-freebase.valuenotation.has_no_value\n    ```\n**Output Requirements (CRITICAL - FOLLOW EXACTLY):**\n* Your response MUST contain the selected relation tags and the relations.\n* DO NOT include ANY introductory text, explanations, comments, code, apologies, or conversational filler.\n* Output EACH selected tag on a NEW line.\n* The output MUST be clean, with no surrounding characters like quotes or list brackets.\n\n**Example of Correct Output Format:**\n[REL_A] chosen.relation.example_one\n[REL_B] another.chosen.relation\n\n**Your Selection:**",
-    "chosen": [
-        "film.actor.film-film.performance.character"
-    ],
-    "rejected": [
-        "theater.theater_actor.theater_roles-theater.theater_role.play",
-        "theater.theater_actor.theater_roles-theater.theater_role.role",
-        "tv.tv_actor.starring_roles-freebase.valuenotation.has_no_value"
-    ]
+    "runtime_s": 137.65261303633451,
+    "llm_calls": 7,
+    "llm_tokens": 436884
 }

@@ -72,38 +72,68 @@ class LLMOutputParser:
     @staticmethod
     def parse_reasoning_output(output: Union[str, List[str]]) -> Optional[Dict[str, Any]]:
         caller_name = "parse_reasoning_output"
-        # ... (此函数的实现与上一版完全相同，此处省略以保持简洁)
-        # --- 实现细节开始 ---
         output_text = LLMOutputParser._ensure_string(output, caller_name)
         if not output_text:
             logger.warning(f"[{caller_name}] 接收到空输出。")
             return None
 
         json_str = None
-        fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", output_text, re.DOTALL)
-        if fence_match:
-            json_str = fence_match.group(1).strip()
-        else:
+        
+        # 尝试多种JSON提取方式
+        patterns = [
+            r"```(?:json)?\s*(\{.*?\})\s*```",  # 代码块格式
+            r"```(?:json)?\s*(\[.*?\])\s*```",  # 数组格式
+            r"(\{(?:[^{}]|{[^{}]*})*\})",       # 更宽松的对象匹配
+        ]
+        
+        for pattern in patterns:
+            fence_match = re.search(pattern, output_text, re.DOTALL)
+            if fence_match:
+                json_str = fence_match.group(1).strip()
+                break
+        
+        # 如果没找到，尝试寻找裸JSON
+        if not json_str:
             json_start = output_text.find('{')
             json_end = output_text.rfind('}') + 1
             if 0 <= json_start < json_end:
                 potential_json = output_text[json_start:json_end]
+                # 简单的括号平衡检查
                 if potential_json.count('{') == potential_json.count('}'):
                     json_str = potential_json
-        
+    
         if not json_str:
             logger.error(f"[{caller_name}] 在输出中找不到有效的JSON对象块: {output_text[:500]}...")
-            return None
+            # 返回一个默认的结构而不是None
+            return {
+                "answer_found": False,
+                "error": "Failed to parse JSON from output",
+                "raw_output": output_text[:200]  # 保留部分原始输出用于调试
+            }
 
         try:
             parsed_data = json.loads(json_str)
-            if not isinstance(parsed_data, dict) or 'answer_found' not in parsed_data:
-                logger.error(f"[{caller_name}] 解析的JSON无效或缺少'answer_found'字段。")
-                return None
+            if not isinstance(parsed_data, dict):
+                logger.error(f"[{caller_name}] 解析的JSON不是字典类型。")
+                return {
+                    "answer_found": False,
+                    "error": "Parsed JSON is not a dictionary"
+                }
+            
+            # 确保必需字段存在
+            if 'answer_found' not in parsed_data:
+                logger.warning(f"[{caller_name}] 解析的JSON缺少'answer_found'字段，设置默认值。")
+                parsed_data['answer_found'] = False
+                
             return parsed_data
+            
         except json.JSONDecodeError as e:
             logger.error(f"[{caller_name}] JSON解码失败: {e}")
-            return None
+            return {
+                "answer_found": False,
+                "error": f"JSON decode error: {str(e)}",
+                "raw_json": json_str[:200]
+            }
         
     @staticmethod
     def parse_fallback_answer(output: Union[str, List[str]]) -> Dict[str, Any]:

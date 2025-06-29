@@ -63,7 +63,7 @@ The relations you select MUST come EXACTLY from the 'Available Relations' list p
 
 **Your Selection:**"""
 
-    RELATION_SELECTION_WITH_HISTORY: ClassVar[str] = """'''    RELATION_SELECTION_WITH_HISTORY: ClassVar[str] = """**Role:** KG Strategist
+    RELATION_SELECTION_WITH_HISTORY: ClassVar[str] = """**Role:** KG Strategist
 **Objective:** Identify paths to answer: "{question}"
 **Current Entity:** "{entity}"
 **Past Steps & Findings:** "{history}"
@@ -85,44 +85,6 @@ The relations you select MUST come EXACTLY from the 'Available Relations' list p
 [REL_B] another.chosen.relation
 
 **Your Selection:**"""
-
-    STATE_AWARE_RELATION_SELECTION: ClassVar[str] = """**Role:** KG Strategist
-**Objective:** Answer the Original Question by navigating the knowledge graph.
-**Original Question:** "{original_question}"
-**Current Path Traversed:** "{current_path_str}"
-**Current Entity:** "{current_entity}"
-
-**Task:**
-Based on the **Original Question** and the **Current Path Traversed**, select the most promising relation(s) to explore next from the **Current Entity**. Your goal is to extend the path towards the answer.
-
-**Available Relations from "{current_entity}":**
-```
-{relations}
-```
-
-**Output Requirements (CRITICAL - FOLLOW EXACTLY):**
-1.  **Selection:** Choose up to **{max_selection_count}** relations from the list.
-2.  **Reasoning:** For each chosen relation, provide a brief justification explaining *why* it's a good choice in the context of the **Original Question** and **Current Path**.
-3.  **Format:** Your entire output must be a single, valid JSON object. Do not add any text outside of the JSON structure.
-
-**JSON Output Format:**
-```json
-{{
-  "choices": [
-    {{
-      "relation": "<exact_relation_name_from_list>",
-      "reasoning": "<brief_justification_here>"
-    }},
-    {{
-      "relation": "<another_exact_relation_name>",
-      "reasoning": "<brief_justification_for_this_choice>"
-    }}
-  ]
-}}
-```
-
-**Your JSON Response:**"""
-''"""
 
     # --- Reasoning and Answer Generation Templates ---
     REASONING: ClassVar[str] = """**Task:** Analyze the Exploration History to determine if the Question can be answered. Based on the finding, either extract the answer(s) or propose the next exploration step.
@@ -209,60 +171,6 @@ Respond with a single JSON object:
 }}
 ```"""
 
-    # --- Other Templates ---
-    ZERO_SHOT_PROMPT: ClassVar[str] = """You are a knowledge graph reasoning expert. Analyze reasoning paths connecting the topic entity to potential answers.
-Question:
-{question}
-
-Topic entity:
-{entity}
-
-Your task is to identify the most promising reasoning paths that could lead to the answer."""
-
-    SEMANTIC_PATH_TEMPLATE: ClassVar[str] = """# Semantic Reasoning Path: {reasoning_path}
-
-Path Analysis:
-HIGH SEMANTIC RELEVANCE - Strong alignment with question intent. Strengths: Semantic alignment, relevant relations, intuitive reasoning
-
-Answer: {answer}"""
-
-    SHORTEST_PATH_TEMPLATE: ClassVar[str] = """# Shortest Reasoning Path: {reasoning_path}
-
-Path Analysis:
-MAXIMUM EFFICIENCY - Most direct connection in the graph. Strengths: Direct path, minimal hops, structurally optimal
-
-Answer:{answer}"""
-
-    NEGATIVE_PATH_TEMPLATE: ClassVar[str] = """# Problematic Reasoning Path: {reasoning_path}
-
-Path Analysis:
-LOW RELEVANCE - Poor alignment with question intent. Issues: Poor semantic alignment, irrelevant relations, illogical reasoning
-
-Answer:
-{answer}"""
-
-    POSITIVE_PATH_TEMPLATE: ClassVar[str] = """# Reasoning Path: {reasoning_path}
-
-Path Analysis:
-HIGH RELEVANCE - Strong alignment with question intent. Strengths: Direct semantic connection, relevant relations, logical reasoning flow
-
-Answer:
-{answer}"""
-
-    PATH_EVALUATION: ClassVar[str] = """You are a knowledge graph reasoning expert. Evaluate the following reasoning path for answering the question.
-
-Question:
-{question}
-
-Path:
-{path}
-
-Provide a comprehensive assessment using the following metrics:
-
-[Semantic Relevance: 1-10] - How well the path aligns with the question's meaning [Path Efficiency: 1-10] - How direct and concise the path is [Factual Accuracy: 1-10] - How factually correct the path relationships are [Overall Quality: 1-10] - Overall assessment considering all factors
-
-[Analysis: detailed explanation of strengths and weaknesses] [Conclusion: whether this path effectively answers the question]"""
-
     # --- Initialization and Methods ---
     def __init__(self):
         self._templates: Dict[str, PromptTemplate] = {}
@@ -288,7 +196,7 @@ Provide a comprehensive assessment using the following metrics:
                 "required_params": ["question", "entity", "relations", "max_selection_count"],
                 "description": "Select most relevant relations for exploration"
             },
-            '''            {
+            {
                 "name": "relation_selection_with_history",
                 "template": cls.RELATION_SELECTION_WITH_HISTORY,
                 "category": TemplateCategory.RELATION,
@@ -296,86 +204,22 @@ Provide a comprehensive assessment using the following metrics:
                 "description": "Select relations based on history"
             },
             {
-                "name": "state_aware_relation_selection",
-                "template": cls.STATE_AWARE_RELATION_SELECTION,
-                "category": TemplateCategory.RELATION,
-                "required_params": ["original_question", "current_path_str", "current_entity", "relations", "max_selection_count"],
-                "description": "Select relations based on the full traversal state"
-            },
-'''
-            # CVT_ATTRIBUTE_SELECTION_TEMPLATE 的定义已从此列表移除
-            {
                 "name": "reasoning",
                 "template": cls.REASONING,
                 "category": TemplateCategory.REASONING,
                 "required_params": ["question", "entity", "exploration_history"],
                 "description": "Reasoning based on knowledge graph exploration"
             },
-            {
-                "name": "zero_shot",
-                "template": cls.ZERO_SHOT_PROMPT,
-                "category": TemplateCategory.ZERO_SHOT,
-                "required_params": ["question", "entity"],
-                "description": "Zero-shot reasoning path analysis"
-            },
-            {
-                "name": "semantic_path",
-                "template": cls.SEMANTIC_PATH_TEMPLATE,
-                "category": TemplateCategory.PATH,
-                "required_params": ["reasoning_path", "answer"],
-                "description": "Semantically relevant reasoning path template"
-            },
-            {
-                "name": "shortest_path",
-                "template": cls.SHORTEST_PATH_TEMPLATE,
-                "category": TemplateCategory.PATH,
-                "required_params": ["reasoning_path", "answer"],
-                "description": "Shortest reasoning path template"
-            },
-            {
-                "name": "negative_path",
-                "template": cls.NEGATIVE_PATH_TEMPLATE,
-                "category": TemplateCategory.PATH,
-                "required_params": ["reasoning_path", "answer"],
-                "description": "Invalid reasoning path template"
-            },
-            {
-                "name": "positive_path",
-                "template": cls.POSITIVE_PATH_TEMPLATE,
-                "category": TemplateCategory.PATH,
-                "required_params": ["reasoning_path", "answer"],
-                "description": "Valid reasoning path template"
-            },
-            {
-                "name": "path_evaluation",
-                "template": cls.PATH_EVALUATION,
-                "category": TemplateCategory.EVALUATION,
-                "required_params": ["question", "path"],
-                "description": "Evaluate reasoning path quality"
-            },
-            # 确保其他被注释掉的模板（如 entity_selection, targeted_relation_selection 等）
-            # 如果在 ModelInterface 中没有对应的方法使用它们，也应该保持注释或移除。
-            # 如果需要 entity_selection 模板，应取消注释并确保其定义正确。
         ]
 
     def _initialize_templates(self) -> None:
-        """基于 _get_template_definitions 初始化所有 PromptTemplate 对象。"""
         for template_def in self.__class__._get_template_definitions():
-            # 检查模板 ClassVar 是否实际存在，以避免在删除 ClassVar 后出错
             if hasattr(self.__class__, template_def["template_name"].upper() if "template_name" in template_def else template_def["name"].upper()):
-                 # 确保template_def["template"]引用的是实际的ClassVar字符串
                  actual_template_string = getattr(self.__class__, template_def["template"].split('.')[-1] if isinstance(template_def["template"], str) and '.' in template_def["template"] else template_def["name"].upper() , None)
                  if actual_template_string is None and "template" in template_def: # Fallback for direct template string
                      actual_template_string = template_def["template"]
-
-
-                 # 这里假设 template_def["template"] 已经包含正确的模板字符串
-                 # 但更安全的方式是直接引用ClassVar
                  template_string_attr_name = template_def["name"].upper()
                  if not hasattr(self.__class__, template_string_attr_name):
-                     # logger.warning(f"Template string ClassVar {template_string_attr_name} not found for template definition '{template_def['name']}'. Skipping.")
-                     # continue # 如果严格要求ClassVar存在，则跳过
-                     # 或者允许 template_def["template"] 直接就是字符串
                      if isinstance(template_def["template"], str):
                         actual_template_string = template_def["template"]
                      else:
@@ -387,7 +231,7 @@ Provide a comprehensive assessment using the following metrics:
 
                  template = PromptTemplate(
                     name=template_def["name"],
-                    template=actual_template_string, # 使用实际的模板字符串
+                    template=actual_template_string,
                     category=template_def["category"],
                     required_params=template_def["required_params"],
                     description=template_def.get("description", "") # 使用 .get 以防 description 缺失

@@ -3,7 +3,8 @@ from typing import Any, List, Dict, Optional, Set, Callable, Tuple, Union
 from enum import Enum
 
 from src.llm_output_parser import LLMOutputParser
-from src.utils.data_utils import ExplorationRound
+from src.utils.data_utils import TraversalState
+from src.result_formatter import ResultFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class ModelInterface:
         self.model = model
         self.templates = templates
         self.parser = parser or LLMOutputParser()
-
+        self.formatter = ResultFormatter()
         if not isinstance(self.parser, LLMOutputParser):
             raise TypeError(f"Parser must be an instance of LLMOutputParser, got {type(self.parser)}")
         
@@ -87,6 +88,18 @@ class ModelInterface:
             logger.error(f"Error during model batch generation. Error: {e}", exc_info=True)
             return None
 
+    def score_relations_in_batch(self, prompts: List[str], candidates_lists: List[List[str]]) -> List[Dict[str, float]]:
+        if len(prompts) != len(candidates_lists):
+            raise ValueError("The number of prompts must match the number of candidate lists.")
+        all_scores = []
+        for prompt, candidates in zip(prompts, candidates_lists):
+            if not candidates:
+                all_scores.append({})
+                continue
+            scores = self.model.score_candidate_relations_batched(prompt, candidates)
+            all_scores.append(scores)
+        return all_scores
+    
     def _select_items(self, item_type: str, items: List[str], max_items: Optional[int],
                       template_name: str, parser_method_name: str, fallback_on_error: bool = False,
                       **template_args: Any) -> List[str]:
@@ -154,31 +167,40 @@ class ModelInterface:
             **kwargs
         )
 
-    def check_answerability(self, question: str, start_entities: List[str],
-                              exploration_history: str) -> Dict[str, Any]:
+    def check_answerability(self, traversal_state: TraversalState) -> Dict[str, Any]:
         template_name = TemplateName.REASONING
         parser_method_name = ParserMethod.PARSE_REASONING_OUTPUT
-
+        start_entities_set = {
+            round_data.entity 
+            for round_data in traversal_state.exploration_trace 
+            if round_data.round_num == 1
+        }
+        start_entities_str = ", ".join(sorted(list(start_entities_set))) if start_entities_set else "N/A"
         if not hasattr(self.parser, parser_method_name):
             error_msg = f"Internal Error: Parser method '{parser_method_name}' missing."
-            return {"answer_found": False, "next_exploration_step": {"justification": error_msg}}
+            return {"answer_found": False, "answer_entities": [], "reasoning_summary": error_msg}
 
+        reasoning_paths = self.formatter.extract_paths_from_history(start_entities_set, traversal_state.exploration_trace)
+        exploration_history_str = "\n".join([p.to_string() for p in reasoning_paths])
+        if not exploration_history_str:
+            exploration_history_str = "No paths have been explored yet."
         reasoning_output_str = self.generate_output(
             template_name,
-            question=question,
-            entity=", ".join(start_entities),
-            exploration_history=exploration_history
-        )
+            question=traversal_state.original_question,
+            entity=start_entities_str,
+            exploration_history=exploration_history_str
+            )
         if not reasoning_output_str:
-             return {"answer_found": False, "next_exploration_step": {"justification": "Model failed to generate output."}}
-        
+            return {"answer_found": False, "answer_entities": [], "reasoning_summary": "PredictModel failed to generate output."}
         try:
             parser_method: Callable = getattr(self.parser, parser_method_name)
             parsed_output = parser_method(reasoning_output_str)
             return parsed_output
         except Exception as e:
-             error_msg = f"Critical error parsing reasoning output: {e}"
-             return {"answer_found": False, "next_exploration_step": {"justification": error_msg}}
+            error_msg = f"Critical error parsing prediction output: {e}"
+            self.logger.error(error_msg, exc_info=True)
+            return {"answer_found": False, "answer_entities": [], "reasoning_summary": error_msg}
+
 
     def generate_fallback_answer(self, question: str, history_text: str) -> Dict[str, any]:
         logger.warning(f"Generating fallback answer for question: '{question[:100]}...'")

@@ -23,7 +23,7 @@ fi
 
 # --- Configuration Section ---
 DATA_PATH="rmanluo"
-DATA_NAME="RoG-webqsp"
+DATA_NAME="RoG-cwq"
 SPLIT="test"
 PREDICT_PATH="results/all_result"
 
