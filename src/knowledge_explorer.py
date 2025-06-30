@@ -160,8 +160,12 @@ class KnowledgeExplorer:
                 start_entities=start_entities,
                 fallback_used=fallback_used,
                 runtime_s=duration_s,
+                explore_calls = explore_calls,
+                predict_calls = predict_calls,
                 llm_calls=total_calls,
-                llm_tokens=total_tokens
+                explore_tokens = explore_tokens,
+                predict_tokens = predict_tokens,
+                llm_tokens=total_tokens,
             )
             
         except Exception as e:

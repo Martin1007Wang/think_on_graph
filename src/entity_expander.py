@@ -2,7 +2,7 @@ import logging
 from src.utils.data_utils import ExplorationRound, TraversalState
 from typing import Optional, List
 from collections import defaultdict
-
+from src.llm_output_parser import LLMOutputParser
 from .knowledge_graph import KnowledgeGraph
 from .model_interface import ModelInterface
 
@@ -17,6 +17,7 @@ class EntityExpander:
         self.kg = kg
         self.explore_model_interface = explore_model_interface
         self.max_relation_selection_count = max_relation_selection_count
+        self.parser = LLMOutputParser()
         logger.info(f"EntityExpander (Batch Mode) initialized with max_relation_selection_count={self.max_relation_selection_count}")
 
     def _fetch_relations(self, node: str) -> List[str]:
@@ -85,26 +86,15 @@ class EntityExpander:
         if batch_prompts_to_score:
             logger.info(f"Scoring relations for a batch of {len(batch_prompts_to_score)} entities...")
             try:
-                list_of_relation_scores = self.explore_model_interface.score_relations_in_batch(
-                    batch_prompts_to_score,
-                    batch_candidates_to_score
-                )
-
-                # =================================================================================
-                # Phase 3: Processing the Batched Results (处理批量结果)
-                # =================================================================================
-                
-                for i, relation_scores in enumerate(list_of_relation_scores):
+                # list_of_relation_scores = self.explore_model_interface.score_relations_in_batch(
+                #     batch_prompts_to_score,
+                #     batch_candidates_to_score
+                # )
+                generated_outputs = self.explore_model_interface.generate_output_batch(batch_prompts_to_score)
+                for i, generated_output in enumerate(generated_outputs):
                     entity_name = entity_metadata_for_scoring[i]
-                    
-                    if relation_scores:
-                        sorted_relations = sorted(relation_scores, key=relation_scores.get, reverse=True)
-                        selected_relation_names = sorted_relations[:self.max_relation_selection_count]
-                        
-                        logger.debug(f"Scores for '{entity_name}': {relation_scores}")
-                        logger.info(f"Top-{self.max_relation_selection_count} selected for '{entity_name}': {selected_relation_names}")
-                        
-                        # 使用选出的关系来处理和更新state
+                    if generated_output:
+                        selected_relation_names = self.parser.parse_relations(generated_output,all_relations)
                         self._process_selected_relations_for_entity(state, entity_name, selected_relation_names, round_num, current_question)
 
             except Exception as e:

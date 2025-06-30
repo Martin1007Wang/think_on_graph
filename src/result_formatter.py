@@ -120,7 +120,11 @@ class ResultFormatter:
         start_entities: List[str],
         fallback_used: bool,
         runtime_s: float,
+        explore_calls: int,
+        predict_calls: int,
         llm_calls: int,
+        explore_tokens: int,
+        predict_tokens: int,
         llm_tokens: int
     ) -> Dict[str, Any]:
         try:
@@ -136,7 +140,11 @@ class ResultFormatter:
                 "fallback_used": fallback_used,
                 "exploration_trace": serializable_trace,
                 "runtime_s": runtime_s,
+                "explore_calls": explore_calls,
+                "predict_calls": predict_calls,
                 "llm_calls": llm_calls,
+                "explore_tokens": explore_tokens,
+                "predict_tokens": predict_tokens,
                 "llm_tokens": llm_tokens,
             }
             return result

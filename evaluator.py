@@ -72,7 +72,7 @@ def run_evaluation(predict_file_path: str):
         for line_num, line in enumerate(f_in, 1):
             try:
                 data = json.loads(line)
-                predicted_entities = data.get("answer_entities", [])
+                predicted_entities = data.get("final_answer_entities", [])
                 ground_truth = data.get("ground_truth", [])
                 
                 current_metrics = calculate_all_metrics(predicted_entities, ground_truth)

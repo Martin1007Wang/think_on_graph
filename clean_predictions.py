@@ -140,7 +140,7 @@ def main():
     )
     parser.add_argument(
         "--dry-run",
-        action="store_true",
+        action="store_false",
         help="演习模式：只打印将要进行的更改，不实际修改任何文件。"
     )
     args = parser.parse_args()

@@ -23,34 +23,46 @@ from transformers.data.data_collator import DataCollatorMixin
 from trl.models import create_reference_model
 from trl.trainer.utils import disable_dropout_in_model
 
-# PEFT imports
-if_peft_available = True
-if if_peft_available:
+# V3.0 FIX: Safe PEFT import
+try:
     from peft import PeftModel, get_peft_model, prepare_model_for_kbit_training
+    PEFT_AVAILABLE = True
+except ImportError:
+    PEFT_AVAILABLE = False
+    logging.warning("PEFT not available, some features will be disabled.")
 
 logger = logging.getLogger(__name__)
 
+# V3.0 ENHANCEMENT: Use constants for magic numbers
+MPO_EPSILON = 1e-8
+MPO_NEGATIVE_INF = -1e9
 
 @dataclass
+class MPOConfig:
+    """Configuration class for MPOTrainer."""
+    beta: float = 0.1
+    positive_loss_weight: float = 0.1
+    max_length: int = 2048
+    
+@dataclass
 class DataCollatorForMPO(DataCollatorMixin):
-    """Memory-optimized data collator for MPO training"""
     pad_token_id: int
     return_tensors: str = "pt"
-    
+
     def torch_call(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
         if not features:
             return {}
-        
-        # Pre-allocate tensors to avoid repeated memory allocation
+
+        # The structure is largely fine, keeping it as is.
+        # Dynamic padding is handled correctly here.
         batch_size = len(features)
         max_seq_len = max(len(f["input_ids"]) for f in features)
         max_candidates = max(f["num_candidates"] for f in features)
-        
-        # Efficient batching with pre-allocation
+
         batch_input_ids = torch.full((batch_size, max_seq_len), self.pad_token_id, dtype=torch.long)
         batch_attention_mask = torch.zeros((batch_size, max_seq_len), dtype=torch.long)
         batch_labels = torch.zeros((batch_size, max_candidates), dtype=torch.float)
-        
+
         for i, feature in enumerate(features):
             seq_len = len(feature["input_ids"])
             num_cands = feature["num_candidates"]
@@ -58,7 +70,7 @@ class DataCollatorForMPO(DataCollatorMixin):
             batch_input_ids[i, :seq_len] = torch.tensor(feature["input_ids"], dtype=torch.long)
             batch_attention_mask[i, :seq_len] = torch.tensor(feature["attention_mask"], dtype=torch.long)
             batch_labels[i, :num_cands] = torch.tensor(feature["positive_labels"], dtype=torch.float)
-        
+
         return {
             "input_ids": batch_input_ids,
             "attention_mask": batch_attention_mask,
@@ -70,79 +82,77 @@ class DataCollatorForMPO(DataCollatorMixin):
 
 class MPOTrainer(Trainer):
     """
-    Multi-Preference Optimization (MPO) Trainer
-    
-    Implements memory-efficient training for knowledge graph navigation
-    using multi-label classification with reference model comparison.
+    Multi-Preference Optimization (MPO) Trainer - V3.0 (Refactored for Performance & Robustness)
     """
     _tag_names = ["trl", "mpo"]
-    
+
     def __init__(
         self,
         model: Optional[Union[PreTrainedModel, nn.Module, str]] = None,
         ref_model: Optional[Union[PreTrainedModel, nn.Module, str]] = None,
+        config: Optional[MPOConfig] = None,
         args: TrainingArguments = None,
         train_dataset: Optional[Dataset] = None,
         eval_dataset: Optional[Union[Dataset, Dict[str, Dataset]]] = None,
-        processing_class: Optional[PreTrainedTokenizerBase] = None,
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
         model_init: Optional[Callable[[], PreTrainedModel]] = None,
         peft_config: Optional[Dict] = None,
-        beta: float = 0.1,
         **kwargs,
     ):
         if not isinstance(args, TrainingArguments):
             raise ValueError("args must be a TrainingArguments object")
         
-        if processing_class is None:
-            raise ValueError("MPOTrainer requires a processing_class (tokenizer).")
+        if tokenizer is None:
+            raise ValueError("MPOTrainer requires a tokenizer.")
+        
+        if config is None:
+            logger.info("MPOConfig not provided. Using default values.")
+            config = MPOConfig()
+        
+        self.config = config
+        self.beta = self.config.beta
+        self.positive_loss_weight = self.config.positive_loss_weight
+        self.max_length = self.config.max_length
 
-        # Initialize main model
         model_init_kwargs = kwargs.pop("model_init_kwargs", {})
         if isinstance(model, str):
             model = AutoModelForCausalLM.from_pretrained(model, **model_init_kwargs)
         
-        # Initialize reference model
+        if PEFT_AVAILABLE and peft_config is not None:
+             model = get_peft_model(model, peft_config)
+
         if ref_model is None:
             logger.info("Creating reference model from main model")
             ref_model = create_reference_model(model)
         elif isinstance(ref_model, str):
             ref_model = AutoModelForCausalLM.from_pretrained(ref_model, **model_init_kwargs)
         
-        # Disable dropout in reference model and set to eval mode
         disable_dropout_in_model(ref_model)
         ref_model.eval()
         self.ref_model = ref_model
         
-        # Training hyperparameters
-        self.beta = beta
-        self.max_length = getattr(args, 'max_length', 2048)
+        self.tokenizer = tokenizer
         
-        # Setup data collator
-        padding_value = processing_class.pad_token_id if processing_class.pad_token_id is not None else processing_class.eos_token_id
+        padding_value = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
         data_collator = DataCollatorForMPO(pad_token_id=padding_value)
 
-        # Process datasets
+        # Dataset processing remains the same, it's efficient enough.
         if train_dataset is not None:
             train_dataset = train_dataset.map(
                 self.tokenize_navigation_sample,
-                fn_kwargs={
-                    "tokenizer": processing_class, 
-                    "max_length": self.max_length
-                },
+                fn_kwargs={"tokenizer": tokenizer, "max_length": self.max_length},
                 remove_columns=train_dataset.column_names,
-                load_from_cache_file=False,
-                desc="Tokenizing training data"
+                load_from_cache_file=False, # Consider setting to True for large datasets
+                desc="Tokenizing training data (V3.0)"
             )
         
         if eval_dataset is not None:
             eval_dataset = eval_dataset.map(
                 self.tokenize_navigation_sample,
-                fn_kwargs={
-                    "tokenizer": processing_class, 
-                    "max_length": self.max_length
-                },
+                fn_kwargs={"tokenizer": tokenizer, "max_length": self.max_length},
                 remove_columns=eval_dataset.column_names,
-                desc="Tokenizing evaluation data"
+                load_from_cache_file=False,
+                desc="Tokenizing evaluation data (V3.0)"
             )
 
         super().__init__(
@@ -151,7 +161,7 @@ class MPOTrainer(Trainer):
             data_collator=data_collator,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
-            processing_class=processing_class,
+            tokenizer=tokenizer,
             model_init=model_init,
             **kwargs,
         )
@@ -162,26 +172,34 @@ class MPOTrainer(Trainer):
         tokenizer: PreTrainedTokenizerBase, 
         max_length: int
     ) -> Dict[str, Any]:
-        """Tokenize navigation sample with proper error handling"""
-        prompt_text = feature["prompt"]
+        """Tokenize navigation sample (V3.0 - with enhanced validation)."""
+        prompt_text = feature.get("prompt")
+        if not prompt_text or not isinstance(prompt_text, str):
+             raise ValueError("Feature must contain a non-empty 'prompt' string.")
+
         chosen_relations = feature.get("chosen", [])
-        if not chosen_relations:
-            raise ValueError("Feature must contain a 'chosen' key with at least one relation.")
+        if not chosen_relations or not all(isinstance(r, str) for r in chosen_relations):
+            raise ValueError("Feature must contain a 'chosen' key with a list of non-empty strings.")
+
+        rejected_relations = feature.get("rejected", [])
+        weights = feature.get("weights", {})
         
-        negative_relations = feature.get("rejected", [])
-        all_candidates = list(set(chosen_relations + negative_relations))  # Remove duplicates
-        all_candidates.sort()  # Ensure consistent ordering
+        # Deduplicate candidates while preserving order
+        seen = set()
+        all_candidates = []
+        for rel in chosen_relations + rejected_relations:
+            if rel not in seen:
+                all_candidates.append(rel)
+                seen.add(rel)
+        
+        positive_labels = [weights.get(c, 1.0) if c in chosen_relations else 0.0 for c in all_candidates]
 
-        # Create binary labels
-        positive_labels = [1.0 if candidate in chosen_relations else 0.0 for candidate in all_candidates]
-
-        # Tokenize prompt
         encoded = tokenizer(
             prompt_text, 
             truncation=True, 
             max_length=max_length, 
             add_special_tokens=True,
-            return_tensors=None  # Return lists, not tensors
+            return_tensors=None
         )
         
         return {
@@ -192,364 +210,272 @@ class MPOTrainer(Trainer):
             "candidates": all_candidates
         }
 
-    def get_relation_logits_batch(
+    # V3.0 FIX: Major performance optimization. Replaced the old method with a fully batched version.
+    def get_relation_logits_batch_optimized(
         self, 
         model: nn.Module, 
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
         candidates: List[List[str]],
-        batch_size: int = 32
     ) -> torch.Tensor:
-        device = input_ids.device
+        """
+        Calculates relation logits in a fully batched manner.
+        This method creates a "super-batch" of all (prompt + candidate) pairs
+        and processes them in a single model forward pass.
+        """
+        device = model.device
         batch_size_samples = input_ids.size(0)
-        max_candidates = max(len(cands) for cands in candidates) if candidates else 0
-        
+        max_candidates = max(len(c) for c in candidates) if candidates else 0
         if max_candidates == 0:
-            return torch.full((batch_size_samples, 0), -1e9, device=device, dtype=torch.float)
-        
-        # Initialize result tensor
-        relation_scores = torch.full(
-            (batch_size_samples, max_candidates), 
-            -1e9, 
-            device=device, 
-            dtype=torch.float
-        )
-        
-        # Process each sample
+            return torch.full((batch_size_samples, 0), MPO_NEGATIVE_INF, device=device)
+
+        super_batch_inputs = []
+        super_batch_metadata = []
+
         for sample_idx, sample_candidates in enumerate(candidates):
-            if not sample_candidates:
-                continue
-                
             context_len = attention_mask[sample_idx].sum().item()
             context_tokens = input_ids[sample_idx, :context_len]
             
-            # Process candidates in batches to prevent memory buildup
-            num_candidates = len(sample_candidates)
-            for start_idx in range(0, num_candidates, batch_size):
-                end_idx = min(start_idx + batch_size, num_candidates)
-                batch_candidates = sample_candidates[start_idx:end_idx]
-                
-                # Prepare batch inputs
-                batch_inputs = []
-                batch_metadata = []
-                
-                for cand_idx, relation_str in enumerate(batch_candidates):
-                    relation_tokens = self.processing_class.encode(
-                        relation_str, 
-                        add_special_tokens=False
-                    )
+            for cand_idx, relation_str in enumerate(sample_candidates):
+                try:
+                    # Using `encode` is fine here as we're building a list before tensoring
+                    relation_tokens = self.tokenizer.encode(relation_str, add_special_tokens=False)
                     if not relation_tokens:
+                        logger.warning(f"Empty tokenization for relation: '{relation_str}'")
                         continue
-                        
-                    full_input = torch.cat([
-                        context_tokens,
-                        torch.tensor(relation_tokens, device=device, dtype=torch.long)
-                    ], dim=0)
-                    
-                    batch_inputs.append(full_input)
-                    batch_metadata.append((start_idx + cand_idx, len(relation_tokens), context_len))
-                
-                if not batch_inputs:
+                except Exception as e:
+                    logger.error(f"Tokenization failed for relation: '{relation_str}', error: {e}")
                     continue
-                
-                # Pad and process batch
-                padded_inputs = torch.nn.utils.rnn.pad_sequence(
-                    batch_inputs, 
-                    batch_first=True, 
-                    padding_value=self.processing_class.pad_token_id
-                )
-                padded_attention = (padded_inputs != self.processing_class.pad_token_id).long()
-                
-                # Forward pass with memory management
-                with torch.cuda.amp.autocast(enabled=self.args.fp16):
-                    outputs = model(
-                        input_ids=padded_inputs,
-                        attention_mask=padded_attention,
-                        use_cache=False,
-                        return_dict=True
-                    )
-                    logits = outputs.logits
-                
-                # Compute scores for this batch
-                log_probs = F.log_softmax(logits, dim=-1)
-                
-                for i, (global_cand_idx, relation_len, ctx_len) in enumerate(batch_metadata):
-                    if i >= log_probs.size(0):
-                        continue
-                    
-                    # Extract target tokens and compute average log probability
-                    start_pos = ctx_len - 1
-                    end_pos = ctx_len + relation_len - 1
-                    
-                    if end_pos >= padded_inputs.size(1):
-                        continue
-                    
-                    target_logits = log_probs[i, start_pos:end_pos]
-                    target_tokens = padded_inputs[i, ctx_len:end_pos + 1]
-                    token_scores = target_logits.gather(
-                        dim=1, 
-                        index=target_tokens.unsqueeze(-1)
-                    ).squeeze(-1)
-                    
-                    avg_score = token_scores.mean()
-                    relation_scores[sample_idx, global_cand_idx] = avg_score
+
+                full_input = torch.cat([
+                    context_tokens, 
+                    torch.tensor(relation_tokens, device=device, dtype=torch.long)
+                ])
+                super_batch_inputs.append(full_input)
+                super_batch_metadata.append({
+                    "sample_idx": sample_idx,
+                    "cand_idx": cand_idx,
+                    "context_len": context_len,
+                    "relation_len": len(relation_tokens)
+                })
+
+        if not super_batch_inputs:
+            return torch.full((batch_size_samples, max_candidates), MPO_NEGATIVE_INF, device=device)
+
+        padded_inputs = torch.nn.utils.rnn.pad_sequence(
+            super_batch_inputs, batch_first=True, padding_value=self.tokenizer.pad_token_id
+        ).to(device)
+        padded_attention = (padded_inputs != self.tokenizer.pad_token_id).long()
+        
+        # Single forward pass for all candidates in the batch
+        with torch.cuda.amp.autocast(enabled=self.args.fp16):
+            outputs = model(input_ids=padded_inputs, attention_mask=padded_attention, use_cache=False, return_dict=True)
+            logits = outputs.logits
+        
+        log_probs = F.log_softmax(logits, dim=-1)
+
+        relation_scores = torch.full((batch_size_samples, max_candidates), MPO_NEGATIVE_INF, device=device)
+        
+        for i, meta in enumerate(super_batch_metadata):
+            ctx_len, rel_len = meta["context_len"], meta["relation_len"]
+            start_pos, end_pos = ctx_len - 1, ctx_len + rel_len - 1
+
+            if end_pos >= padded_inputs.size(1): continue
+
+            target_logits = log_probs[i, start_pos:end_pos]
+            target_tokens = padded_inputs[i, ctx_len : end_pos + 1]
+            
+            if target_logits.size(0) != target_tokens.size(0): continue
+
+            token_scores = target_logits.gather(dim=1, index=target_tokens.unsqueeze(-1)).squeeze(-1)
+            
+            if token_scores.numel() > 0:
+                relation_scores[meta["sample_idx"], meta["cand_idx"]] = token_scores.mean()
         
         return relation_scores
 
-    def compute_kl_penalty(
-        self,
-        policy_logits: torch.Tensor,
-        ref_logits: torch.Tensor,
-        num_candidates: torch.Tensor
-    ) -> torch.Tensor:
-        """Compute KL penalty between policy and reference model"""
-        # Create mask for valid candidates
-        candidate_mask = torch.arange(
-            policy_logits.size(1), 
-            device=policy_logits.device
-        )[None, :] < num_candidates[:, None]
+    def compute_kl_penalty(self, policy_logits: torch.Tensor, ref_logits: torch.Tensor, num_candidates: torch.Tensor) -> torch.Tensor:
+        candidate_mask = torch.arange(policy_logits.size(1), device=policy_logits.device)[None, :] < num_candidates[:, None]
         
-        # Convert logits to probabilities
-        policy_probs = torch.softmax(policy_logits, dim=-1)
-        ref_probs = torch.softmax(ref_logits.detach(), dim=-1)
-        
-        # Compute KL divergence
-        kl_div = F.kl_div(
-            F.log_softmax(policy_logits, dim=-1),
-            ref_probs,
-            reduction='none'
-        )
-        
-        # Apply mask and compute mean
-        masked_kl = kl_div * candidate_mask.float()
-        kl_penalty = masked_kl.sum(dim=1) / num_candidates.clamp(min=1).float()
-        
-        return kl_penalty.mean()
+        policy_probs = torch.sigmoid(policy_logits)
+        ref_probs = torch.sigmoid(ref_logits.detach())
 
-    def compute_multilabel_classification_loss(
-        self,
-        policy_logits: torch.Tensor,
-        ref_logits: torch.Tensor,
-        labels: torch.Tensor,
-        num_candidates: torch.Tensor
-    ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """
-        Compute MPO loss with reference model comparison
-        
-        The loss combines:
-        1. Multi-label classification loss (BCE)
-        2. KL penalty to prevent deviation from reference model
-        """
-        # Create candidate mask
-        candidate_mask = torch.arange(
-            policy_logits.size(1), 
-            device=policy_logits.device
-        )[None, :] < num_candidates[:, None]
-        
-        # Multi-label classification loss
-        bce_loss = F.binary_cross_entropy_with_logits(
-            policy_logits, 
-            labels, 
-            reduction='none'
+        policy_probs = policy_probs.clamp(min=MPO_EPSILON, max=1.0 - MPO_EPSILON)
+        ref_probs = ref_probs.clamp(min=MPO_EPSILON, max=1.0 - MPO_EPSILON)
+
+        kl_div = (
+            policy_probs * (policy_probs.log() - ref_probs.log()) +
+            (1 - policy_probs) * ((1 - policy_probs).log() - (1 - ref_probs).log())
         )
+        masked_kl = kl_div * candidate_mask.float()
+        return (masked_kl.sum(dim=1) / num_candidates.clamp(min=1).float()).mean()
+
+    def compute_mpo_loss(self, policy_logits: torch.Tensor, ref_logits: torch.Tensor, labels: torch.Tensor, num_candidates: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, float]]:
+        candidate_mask = torch.arange(policy_logits.size(1), device=policy_logits.device)[None, :] < num_candidates[:, None]
+        
+        bce_loss = F.binary_cross_entropy_with_logits(policy_logits, labels, reduction='none')
         masked_bce = bce_loss * candidate_mask.float()
         classification_loss = (masked_bce.sum(dim=1) / num_candidates.clamp(min=1).float()).mean()
         
-        # KL penalty
         kl_penalty = self.compute_kl_penalty(policy_logits, ref_logits, num_candidates)
         
-        # Total loss
-        total_loss = classification_loss + self.beta * kl_penalty
+        weighted_positive_mask = labels * candidate_mask.float()
+        num_positives = weighted_positive_mask.sum().clamp(min=MPO_EPSILON)
+        positive_log_probs = F.logsigmoid(policy_logits)
+        positive_loss = -(positive_log_probs * weighted_positive_mask).sum() / num_positives
         
-        # Compute metrics (detached to prevent memory leaks)
-        with torch.no_grad():
-            policy_probs = torch.sigmoid(policy_logits)
-            predictions = (policy_probs > 0.5).float() * candidate_mask.float()
-            
-            # Exact match accuracy
-            label_mask = labels * candidate_mask.float()
-            pred_mask = predictions * candidate_mask.float()
-            exact_matches = (label_mask == pred_mask).all(dim=1)
-            exact_match_acc = exact_matches.float().mean()
-            
-            # Positive confidence
-            positive_mask = (labels == 1.0) * candidate_mask.float()
-            positive_confidence = (policy_probs * positive_mask).sum() / positive_mask.sum().clamp(min=1)
+        total_loss = classification_loss + self.beta * kl_penalty + self.positive_loss_weight * positive_loss
         
-        # Ensure all metrics are Python scalars to prevent memory leaks
         metrics = {
-            "mpo/total_loss": total_loss.detach().cpu().item(),
-            "mpo/classification_loss": classification_loss.detach().cpu().item(),
-            "mpo/kl_penalty": kl_penalty.detach().cpu().item(),
-            "mpo/exact_match_accuracy": exact_match_acc.detach().cpu().item(),
-            "mpo/positive_confidence": positive_confidence.detach().cpu().item(),
+            "loss": total_loss.item(),
+            "classification_loss": classification_loss.item(),
+            "kl_penalty": kl_penalty.item(),
+            "positive_loss": positive_loss.item()
         }
-        
         return total_loss, metrics
 
-    def compute_loss(
-        self,
-        model: nn.Module,
-        inputs: Dict[str, Union[torch.Tensor, Any]],
-        return_outputs: bool = False,
-        **kwargs
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, Dict[str, torch.Tensor]]]:
-        """
-        Compute MPO loss with proper memory management
-        """
-        input_ids = inputs["input_ids"]
-        attention_mask = inputs["attention_mask"]
-        labels = inputs["labels"]
-        num_candidates = inputs["num_candidates"]
-        candidates = inputs["candidates"]
-
-        # Get policy model logits
-        policy_logits = self.get_relation_logits_batch(
-            model, input_ids, attention_mask, candidates
-        )
+    # V3.0 FIX: Optimized and clarified evaluation metrics, especially MRR.
+    def compute_evaluation_metrics(self, policy_logits: torch.Tensor, labels: torch.Tensor, num_candidates: torch.Tensor) -> Dict[str, float]:
+        candidate_mask = torch.arange(policy_logits.size(1), device=policy_logits.device)[None, :] < num_candidates[:, None]
+        policy_probs = torch.sigmoid(policy_logits)
         
-        # Get reference model logits
+        predictions = (policy_probs > 0.5).float() * candidate_mask.float()
+        binary_labels = (labels > 0).float() * candidate_mask.float()
+        
+        # F1, Precision, Recall
+        tp = (predictions * binary_labels).sum(dim=1)
+        fp = (predictions * (1 - binary_labels)).sum(dim=1)
+        fn = ((1 - predictions) * binary_labels).sum(dim=1)
+        
+        precision = tp / (tp + fp).clamp(min=MPO_EPSILON)
+        recall = tp / (tp + fn).clamp(min=MPO_EPSILON)
+        f1 = 2 * (precision * recall) / (precision + recall).clamp(min=MPO_EPSILON)
+        
+        exact_match = ((predictions == binary_labels) | ~candidate_mask).all(dim=1).float().mean()
+        
+        # MRR (Mean Reciprocal Rank) - Robust Calculation
+        reciprocal_ranks = []
+        for i in range(policy_probs.size(0)):
+            if not candidate_mask[i].any() or not binary_labels[i].any():
+                continue
+
+            sample_probs = policy_probs[i][candidate_mask[i]]
+            sample_labels = binary_labels[i][candidate_mask[i]]
+            
+            # Sort probabilities to get ranks
+            sorted_indices = torch.argsort(sample_probs, descending=True)
+            
+            # Find the rank of the first correct item
+            # `(sample_labels[sorted_indices] > 0).nonzero()` gives the positions of true items in the sorted list
+            ranks = (sample_labels[sorted_indices] > 0).nonzero(as_tuple=True)[0]
+            if ranks.numel() > 0:
+                first_correct_rank = ranks[0].item() + 1  # Ranks are 1-based
+                reciprocal_ranks.append(1.0 / first_correct_rank)
+
+        mrr = torch.tensor(reciprocal_ranks).mean() if reciprocal_ranks else torch.tensor(0.0)
+        
+        return {
+            "exact_match": exact_match.item(),
+            "f1_score": f1.mean().item(),
+            "precision": precision.mean().item(),
+            "recall": recall.mean().item(),
+            "mrr": mrr.item()
+        }
+
+    def compute_loss(self, model: nn.Module, inputs: Dict[str, Any], return_outputs=False) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        policy_logits = self.get_relation_logits_batch_optimized(
+            model, inputs["input_ids"], inputs["attention_mask"], inputs["candidates"]
+        )
         with torch.no_grad():
-            ref_logits = self.get_relation_logits_batch(
-                self.ref_model, input_ids, attention_mask, candidates
+            ref_logits = self.get_relation_logits_batch_optimized(
+                self.ref_model, inputs["input_ids"], inputs["attention_mask"], inputs["candidates"]
             )
         
-        # Compute loss and metrics
-        total_loss, metrics = self.compute_multilabel_classification_loss(
-            policy_logits, ref_logits, labels, num_candidates
+        total_loss, train_metrics = self.compute_mpo_loss(
+            policy_logits, ref_logits, inputs["labels"], inputs["num_candidates"]
         )
         
-        # Log metrics
-        if self.is_world_process_zero():
-            self.log(metrics)
+        if self.is_training:
+            self.log(train_metrics)
         
-        if return_outputs:
-            return total_loss, metrics
-        return total_loss
-    
+        return (total_loss, policy_logits) if return_outputs else total_loss
+
     def prediction_step(
-        self,
-        model: Union[PreTrainedModel, nn.Module],
-        inputs: Dict[str, Union[torch.Tensor, Any]],
-        prediction_loss_only: bool,
-        ignore_keys: Optional[List[str]] = None,
+        self, model: nn.Module, inputs: Dict[str, Any], prediction_loss_only: bool, ignore_keys: Optional[List[str]] = None
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
-        """Evaluation step with proper memory management"""
+        model_inputs = self._prepare_inputs(inputs)
         with torch.no_grad():
-            loss, metrics = self.compute_loss(model, inputs, return_outputs=True)
-            
+            loss, policy_logits = self.compute_loss(model, model_inputs, return_outputs=True)
+            loss = loss.mean().detach()
+
         if prediction_loss_only:
             return (loss, None, None)
-        
-        # Return detached labels to prevent memory leaks
-        return (loss, None, inputs["labels"].detach())
 
+        eval_metrics = self.compute_evaluation_metrics(
+            policy_logits, inputs["labels"], inputs["num_candidates"]
+        )
+        self.log(eval_metrics)
+        return (loss, policy_logits, inputs["labels"])
 
-# Enhanced utility functions
-def create_navigation_dataset(navigation_data: List[Dict]) -> Dataset:
-    """
-    Create navigation training dataset with validation
-    
-    Args:
-        navigation_data: Navigation decision data with format:
-        [
-            {
-                "prompt": "Navigate from France to find its capital",
-                "chosen": ["capital"],
-                "rejected": ["population", "language", "area"]
-            },
-            ...
-        ]
-    """
-    # Validate data format
-    required_keys = {"prompt", "chosen", "rejected"}
-    for i, item in enumerate(navigation_data):
-        if not all(key in item for key in required_keys):
-            raise ValueError(f"Item {i} missing required keys: {required_keys}")
-        if not item["chosen"]:
-            raise ValueError(f"Item {i} has empty 'chosen' list")
-    
-    return Dataset.from_list(navigation_data)
-
-
+# Example usage function, adapted for V3.0
 def train_mpo_model(
     model_name: str,
     train_data: List[Dict],
     eval_data: Optional[List[Dict]] = None,
     ref_model_name: Optional[str] = None,
-    output_dir: str = "./mpo_model",
+    output_dir: str = "./mpo_model_v3_0",
     num_train_epochs: int = 3,
-    per_device_train_batch_size: int = 4,  # Reduced for memory efficiency
+    per_device_train_batch_size: int = 4,
     learning_rate: float = 5e-5,
     beta: float = 0.1,
+    positive_loss_weight: float = 0.1,
     **kwargs
 ):
-    """
-    Train MPO model with proper memory management
-    
-    Args:
-        model_name: Name or path of the model to train
-        train_data: Training data in MPO format
-        eval_data: Evaluation data (optional)
-        ref_model_name: Reference model name (defaults to model_name)
-        output_dir: Output directory for trained model
-        num_train_epochs: Number of training epochs
-        per_device_train_batch_size: Batch size per device
-        learning_rate: Learning rate
-        beta: KL penalty coefficient
-        **kwargs: Additional training arguments
-    """
     from transformers import AutoTokenizer, TrainingArguments
     
-    # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
-    # Create datasets
-    train_dataset = create_navigation_dataset(train_data)
-    eval_dataset = create_navigation_dataset(eval_data) if eval_data else None
+    train_dataset = Dataset.from_list(train_data)
+    eval_dataset = Dataset.from_list(eval_data) if eval_data else None
     
-    # Enhanced training arguments for memory efficiency
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_train_epochs,
         per_device_train_batch_size=per_device_train_batch_size,
-        per_device_eval_batch_size=per_device_train_batch_size,
-        gradient_accumulation_steps=kwargs.pop("gradient_accumulation_steps", 2),
+        per_device_eval_batch_size=per_device_train_batch_size * 2,
         learning_rate=learning_rate,
         logging_steps=10,
-        save_steps=500,
+        save_steps=200,
         evaluation_strategy="steps" if eval_dataset else "no",
-        eval_steps=500 if eval_dataset else None,
+        eval_steps=200 if eval_dataset else None,
         save_total_limit=3,
         load_best_model_at_end=True if eval_dataset else False,
-        metric_for_best_model="eval_loss" if eval_dataset else None,
-        greater_is_better=False,
-        dataloader_drop_last=False,
-        remove_unused_columns=True,
-        # Memory optimization
-        dataloader_pin_memory=False,
-        fp16=True,  # Enable mixed precision
+        metric_for_best_model="eval_f1_score",
+        greater_is_better=True,
+        remove_unused_columns=False, # Important for our custom collator
+        fp16=True,
         gradient_checkpointing=True,
         **kwargs
     )
     
-    # Create trainer
+    mpo_config = MPOConfig(
+        beta=beta,
+        positive_loss_weight=positive_loss_weight
+    )
+    
     trainer = MPOTrainer(
         model=model_name,
-        ref_model=ref_model_name or model_name,
+        ref_model=ref_model_name, # Can be None
+        config=mpo_config,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        processing_class=tokenizer,
-        beta=beta,
+        tokenizer=tokenizer,
     )
     
-    # Train model
     trainer.train()
-    
-    # Save model and tokenizer
     trainer.save_model()
     tokenizer.save_pretrained(output_dir)
     

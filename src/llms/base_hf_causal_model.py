@@ -126,17 +126,16 @@ class HfCausalModel(BaseLanguageModel):
 
     @torch.inference_mode()
     def score_candidate_relations_batched(self, prompt: str, candidate_relations: List[str]) -> Dict[str, float]:
-        """批量评分候选关系的方法"""
+        """修正后的批量评分候选关系的方法"""
         if not self.is_ready or self.model is None or self.tokenizer is None:
             raise ModelNotReadyError("Model is not ready for scoring.")
         if not candidate_relations:
             return {}
         
-        # 修正：使用正确的属性名
         prompt_encoded = self.tokenizer(
             prompt, 
             truncation=True, 
-            max_length=self.max_length,  # 修正：使用 self.max_length 而不是 self.max_length
+            max_length=self.max_length,
             add_special_tokens=True,
             return_tensors="pt"
         ).to(self.model.device)
@@ -145,14 +144,17 @@ class HfCausalModel(BaseLanguageModel):
             self.model,
             prompt_encoded['input_ids'],
             prompt_encoded['attention_mask'],
-            [candidate_relations]  # 包装为batch格式
+            [candidate_relations]
         )
         
         scores_dict = {}
         for i, relation in enumerate(candidate_relations):
             if i < relation_scores.size(1):
-                score = torch.sigmoid(relation_scores[0, i]).item()
-                scores_dict[relation] = score
+                # 使用exp而不是sigmoid，因为我们已经有了log概率
+                score = relation_scores[0, i].item()
+                # 如果需要转换为概率，使用exp
+                prob_score = torch.exp(torch.tensor(score)).item()
+                scores_dict[relation] = prob_score
             else:
                 scores_dict[relation] = 0.0
         
@@ -164,9 +166,9 @@ class HfCausalModel(BaseLanguageModel):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
         candidates: List[List[str]],
-        batch_size: int = 16  # 减小批次大小避免内存问题
+        batch_size: int = 16
     ) -> torch.Tensor:
-        """计算关系logits的核心方法"""
+        """计算关系logits的核心方法 - 修正版本"""
         device = input_ids.device
         batch_size_samples = input_ids.size(0)
         max_candidates = max(len(cands) for cands in candidates) if candidates else 0
@@ -236,22 +238,55 @@ class HfCausalModel(BaseLanguageModel):
                     if i >= log_probs.size(0):
                         continue
                     
-                    start_pos = ctx_len - 1
-                    end_pos = ctx_len + relation_len - 1
+                    # 修正：正确计算预测关系tokens的位置
+                    # logits在位置j预测位置j+1的token
+                    # 关系tokens在位置 [ctx_len, ctx_len+relation_len)
+                    # 所以需要使用logits [ctx_len-1, ctx_len+relation_len-1)
+                    relation_start_pos = ctx_len
+                    relation_end_pos = ctx_len + relation_len
                     
-                    if end_pos >= padded_inputs.size(1):
+                    # 检查边界
+                    if relation_end_pos > padded_inputs.size(1):
+                        print(f"Warning: relation_end_pos {relation_end_pos} exceeds sequence length {padded_inputs.size(1)}")
                         continue
                     
-                    target_logits = log_probs[i, start_pos:end_pos]
-                    target_tokens = padded_inputs[i, ctx_len:end_pos + 1]
+                    if relation_start_pos >= padded_inputs.size(1):
+                        print(f"Warning: relation_start_pos {relation_start_pos} exceeds sequence length {padded_inputs.size(1)}")
+                        continue
                     
+                    # 获取关系部分的目标tokens
+                    target_tokens = padded_inputs[i, relation_start_pos:relation_end_pos]
+                    
+                    # 获取用于预测这些tokens的logits
+                    # 需要使用前一个位置的logits来预测当前位置的token
+                    prediction_start_pos = relation_start_pos - 1
+                    prediction_end_pos = relation_end_pos - 1
+                    
+                    # 再次检查边界
+                    if prediction_start_pos < 0 or prediction_end_pos > log_probs.size(1):
+                        print(f"Warning: prediction positions out of bounds: [{prediction_start_pos}, {prediction_end_pos})")
+                        continue
+                    
+                    # 获取预测logits
+                    target_logits = log_probs[i, prediction_start_pos:prediction_end_pos]
+                    
+                    # 确保dimensions匹配
+                    if target_logits.size(0) != target_tokens.size(0):
+                        print(f"Warning: dimension mismatch - logits: {target_logits.size(0)}, tokens: {target_tokens.size(0)}")
+                        continue
+                    
+                    # 计算每个token的概率
                     token_scores = target_logits.gather(
                         dim=1, 
                         index=target_tokens.unsqueeze(-1)
                     ).squeeze(-1)
                     
-                    avg_score = token_scores.mean()
-                    relation_scores[sample_idx, global_cand_idx] = avg_score
+                    # 计算平均分数
+                    if token_scores.numel() > 0:
+                        avg_score = token_scores.mean()
+                        relation_scores[sample_idx, global_cand_idx] = avg_score
+                    else:
+                        print(f"Warning: No valid tokens for relation {global_cand_idx}")
         
         return relation_scores
     
